@@ -23,16 +23,6 @@ def get_db_connection():
         print(f"Error connecting to MySQL: {err}")
         return None
 
-#Test Connection Function
-def test_connection():
-    conn = get_db_connection()
-    if conn:
-        conn.close()
-        print("Connection closed.")
-    else:
-        print("Failed to connect.")
-
-
 #Flask Set-Up
 app = Flask(__name__)
 
@@ -107,6 +97,39 @@ def home():
     # For now, we return a simple message.
     return "Welcome to ClubHub! Please sign up to explore clubs and events."
 
+@app.route('/test-db-connection', methods=['GET'])
+def test_db_connection():
+    """
+    Tests the database connection and returns the total number of students.
+    """
+    conn = get_db_connection()
+    if not conn:
+        # If get_db_connection failed, it means credentials or network config is wrong.
+        return jsonify({'success': False, 'message': 'Failed to connect to the database. Check .env and network.'}), 500
+
+    try:
+        cursor = conn.cursor()
+        # SQL Query to count all students (Source data shows 20 students)
+        query = "SELECT COUNT(*) FROM student"
+        cursor.execute(query)
+        
+        # Fetch the single result
+        result = cursor.fetchone()
+        student_count = result[0]
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Database connection successful and query executed.',
+            'student_count': student_count
+        }), 200
+        
+    except mysql.connector.Error as err:
+        return jsonify({'success': False, 'message': f'SQL execution error: {err}'}), 500
+    finally:
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
+            print("Connection closed after test.")
 
 if __name__ == '__main__':
     # You can uncomment this line to test the connection immediately
