@@ -130,6 +130,26 @@ def test_db_connection():
             cursor.close()
             conn.close()
             print("Connection closed after test.")
+@app.route('/clubs', methods=['GET'])
+def get_clubs():
+    """
+    Returns all clubs from the 'club' table.
+    """
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Database connection failed.'}), 500
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM club")
+        rows = cursor.fetchall()
+        return jsonify({'success': True, 'clubs': rows}), 200
+
+    except mysql.connector.Error as err:
+        return jsonify({'success': False, 'message': f'Database error: {err}'}), 500
+    finally:
+        cursor.close()
+        conn.close()
 
 if __name__ == '__main__':
     # You can uncomment this line to test the connection immediately

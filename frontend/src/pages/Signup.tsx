@@ -1,5 +1,5 @@
 import { useState } from 'react'
-
+import { useNavigate } from 'react-router-dom'
 type SignupPayload = {
   student_id: string
   username: string
@@ -21,6 +21,7 @@ export default function Signup() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const navigate = useNavigate()
 
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -46,6 +47,8 @@ export default function Signup() {
         throw new Error(json?.message || 'Signup failed')
       }
       setMessage(json?.message || 'Account created successfully!')
+      navigate('/welcome')
+
     } catch (err: any) {
         
       setError(err.message ?? 'Something went wrong')
