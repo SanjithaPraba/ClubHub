@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useState, useEffect } from 'react'
 
 type Club = {
   club_id: number
@@ -9,38 +9,30 @@ type Club = {
   club_biography: string
 }
 
-export default function Clubs() {
-  const [clubs, setClubs] = useState<Club[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+export default function ClubDetail() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { user, logout } = useAuth()
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   
-  // NEW: State to hold the search text
-  const [searchTerm, setSearchTerm] = useState('')
+  // Get club data from navigation state, or redirect if not available
+  const club = location.state?.club as Club | undefined
 
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
+  useEffect(() => {
+    // If no club data was passed, redirect back to clubs page
+    if (!club) {
+      navigate('/clubs')
+    }
+  }, [club, navigate])
 
   const handleLogout = () => {
     logout()
     navigate('/signup')
   }
 
-  useEffect(() => {
-    const fetchClubs = async () => {
-      try {
-        const res = await fetch('/api/clubs')
-        const json = await res.json()
-        if (!res.ok) throw new Error(json?.message || 'Failed to fetch clubs')
-        setClubs(json.clubs || [])
-      } catch (err: any) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchClubs()
-  }, [])
+  const handleBack = () => {
+    navigate('/clubs')
+  }
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -57,38 +49,9 @@ export default function Clubs() {
     }
   }, [showProfileMenu])
 
-  // NEW: Filtering Logic
-  const filteredClubs = clubs.filter((club) => {
-    const term = searchTerm.toLowerCase()
-    return (
-      club.club_name.toLowerCase().includes(term) ||
-      club.club_biography.toLowerCase().includes(term) ||
-      club.club_type.toLowerCase().includes(term)
-    )
-  })
-
-  if (loading) return (
-    <div style={{ 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center', 
-      minHeight: '100vh',
-      fontFamily: 'system-ui'
-    }}>
-      <p style={{ textAlign: 'center' }}>Loading clubs...</p>
-    </div>
-  )
-  if (error) return (
-    <div style={{ 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center', 
-      minHeight: '100vh',
-      fontFamily: 'system-ui'
-    }}>
-      <p style={{ color: 'crimson', textAlign: 'center' }}>{error}</p>
-    </div>
-  )
+  if (!club) {
+    return null // Will redirect in useEffect
+  }
 
   return (
     <div
@@ -100,7 +63,7 @@ export default function Clubs() {
         padding: '2rem',
         fontFamily: 'system-ui',
         background: '#f9fafb',
-        height: '100vh',
+        minHeight: '100vh',
         width: '100%',
         margin: 0,
         boxSizing: 'border-box',
@@ -214,95 +177,139 @@ export default function Clubs() {
         )}
       </div>
 
-      <h1 style={{ marginBottom: '1.5rem', color: '#1e293b' }}>All Clubs</h1>
-
-      {/* NEW: Search Bar Input */}
-      <input
-        type="text"
-        placeholder="Search by name, type, or bio..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
+      {/* Back Button */}
+      <button
+        onClick={handleBack}
         style={{
-          padding: '12px 16px',
-          marginBottom: '1.5rem',
-          width: '100%',
-          maxWidth: '400px',
-          borderRadius: '8px',
+          position: 'absolute',
+          top: '2rem',
+          left: '2rem',
+          padding: '0.5rem 1rem',
+          borderRadius: '6px',
           border: '1px solid #d1d5db',
-          fontSize: '1rem',
-          outline: 'none',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+          background: 'white',
+          color: '#374151',
+          cursor: 'pointer',
+          fontSize: '0.875rem',
+          fontWeight: 500,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem'
         }}
-      />
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = '#f9fafb'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'white'
+        }}
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M19 12H5M12 19l-7-7 7-7" />
+        </svg>
+        Back to Clubs
+      </button>
 
+      {/* Club Details Card */}
       <div
         style={{
           width: '100%',
           maxWidth: 800,
           background: 'white',
-          borderRadius: 10,
+          borderRadius: '12px',
           boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          marginTop: '2rem'
         }}
       >
-        {/* Header row */}
         <div
           style={{
-            display: 'grid',
-            gridTemplateColumns: '2fr 2fr 1fr',
-            backgroundColor: '#1e3a8a',
-            color: 'white',
-            padding: '0.75rem 1.5rem',
-            fontWeight: 600
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            padding: '2rem',
+            color: 'white'
           }}
         >
-          <span>Club Name</span>
-          <span>Biography</span>
-          <span>Type</span>
+          <h1 style={{ margin: 0, marginBottom: '0.5rem', fontSize: '2rem' }}>
+            {club.club_name}
+          </h1>
+          <span
+            style={{
+              display: 'inline-block',
+              padding: '0.25rem 0.75rem',
+              background: 'rgba(255, 255, 255, 0.2)',
+              borderRadius: '20px',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              textTransform: 'capitalize'
+            }}
+          >
+            {club.club_type}
+          </span>
         </div>
 
-        {/* NEW: Map over filteredClubs instead of clubs */}
-        {filteredClubs.length > 0 ? (
-          filteredClubs.map((club, i) => (
-            <div
-              key={club.club_id}
-              onClick={() => navigate(`/clubs/${club.club_id}`, { state: { club } })}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '2fr 2fr 1fr',
-                padding: '1rem 1.5rem',
-                borderBottom: i === filteredClubs.length - 1 ? 'none' : '1px solid #e5e7eb',
-                backgroundColor: i % 2 === 0 ? '#f9fafb' : 'white',
-                cursor: 'pointer',
-                transition: 'background-color 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#e0e7ff'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = i % 2 === 0 ? '#f9fafb' : 'white'
-              }}
-            >
-              <span style={{ fontWeight: 600, color: '#111827' }}>{club.club_name}</span>
-              <span style={{ color: '#374151' }}>{club.club_biography}</span>
-              <span
-                style={{
-                  color: '#2563eb',
-                  fontWeight: 500,
-                  textTransform: 'capitalize'
-                }}
-              >
-                {club.club_type}
-              </span>
+        <div style={{ padding: '2rem' }}>
+          <h2 style={{ margin: 0, marginBottom: '1rem', color: '#1e293b', fontSize: '1.25rem' }}>
+            About
+          </h2>
+          <p style={{ 
+            margin: 0, 
+            color: '#374151', 
+            lineHeight: '1.6',
+            fontSize: '1rem'
+          }}>
+            {club.club_biography}
+          </p>
+        </div>
+
+        <div style={{ 
+          padding: '1.5rem 2rem', 
+          borderTop: '1px solid #e5e7eb',
+          background: '#f9fafb'
+        }}>
+          <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+            <div>
+              <p style={{ 
+                margin: 0, 
+                fontSize: '0.875rem', 
+                color: '#6b7280',
+                marginBottom: '0.25rem'
+              }}>
+                Club ID
+              </p>
+              <p style={{ margin: 0, color: '#111827', fontWeight: 600 }}>
+                #{club.club_id}
+              </p>
             </div>
-          ))
-        ) : (
-          // NEW: Message when no results found
-          <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
-            No clubs found matching "{searchTerm}"
+            <div>
+              <p style={{ 
+                margin: 0, 
+                fontSize: '0.875rem', 
+                color: '#6b7280',
+                marginBottom: '0.25rem'
+              }}>
+                Type
+              </p>
+              <p style={{ 
+                margin: 0, 
+                color: '#2563eb', 
+                fontWeight: 600,
+                textTransform: 'capitalize'
+              }}>
+                {club.club_type}
+              </p>
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   )
 }
+
