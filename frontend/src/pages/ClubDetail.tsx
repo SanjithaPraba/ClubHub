@@ -14,16 +14,44 @@ export default function ClubDetail() {
   const location = useLocation()
   const { user, logout } = useAuth()
   const [showProfileMenu, setShowProfileMenu] = useState(false)
+  const [isMember, setIsMember] = useState<boolean | null>(null)
+  const [isJoining, setIsJoining] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   
   // Get club data from navigation state, or redirect if not available
   const club = location.state?.club as Club | undefined
 
   useEffect(() => {
-    // If no club data was passed, redirect back to clubs page
     if (!club) {
       navigate('/clubs')
     }
   }, [club, navigate])
+
+  // Check membership status when component loads
+  useEffect(() => {
+    const checkMembership = async () => {
+      if (!club || !user?.student_id) {
+        setIsMember(false)
+        return
+      }
+
+      try {
+        const res = await fetch(`/api/clubs/${club.club_id}/membership?student_id=${user.student_id}`)
+        const json = await res.json()
+        if (res.ok) {
+          setIsMember(json.is_member)
+        } else {
+          setError(json.message || 'Failed to check membership status')
+          setIsMember(false)
+        }
+      } catch (err: any) {
+        setError(err.message || 'Failed to check membership status')
+        setIsMember(false)
+      }
+    }
+
+    checkMembership()
+  }, [club, user])
 
   const handleLogout = () => {
     logout()
@@ -32,6 +60,37 @@ export default function ClubDetail() {
 
   const handleBack = () => {
     navigate('/clubs')
+  }
+
+  const handleJoinClub = async () => {
+    if (!club || !user?.student_id) {
+      setError('You must be logged in to join a club')
+      return
+    }
+
+    setIsJoining(true)
+    setError(null)
+
+    try {
+      const res = await fetch(`/api/clubs/${club.club_id}/join`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ student_id: user.student_id }),
+      })
+
+      const json = await res.json()
+      if (res.ok) {
+        setIsMember(true)
+      } else {
+        setError(json.message || 'Failed to join club')
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to join club')
+    } finally {
+      setIsJoining(false)
+    }
   }
 
   // Close dropdown when clicking outside
@@ -234,25 +293,43 @@ export default function ClubDetail() {
           style={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             padding: '2rem',
-            color: 'white'
+            color: 'white',
+            position: 'relative'
           }}
         >
           <h1 style={{ margin: 0, marginBottom: '0.5rem', fontSize: '2rem' }}>
             {club.club_name}
           </h1>
-          <span
-            style={{
-              display: 'inline-block',
-              padding: '0.25rem 0.75rem',
-              background: 'rgba(255, 255, 255, 0.2)',
-              borderRadius: '20px',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-              textTransform: 'capitalize'
-            }}
-          >
-            {club.club_type}
-          </span>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <span
+              style={{
+                display: 'inline-block',
+                padding: '0.25rem 0.75rem',
+                background: 'rgba(255, 255, 255, 0.2)',
+                borderRadius: '20px',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                textTransform: 'capitalize'
+              }}
+            >
+              {club.club_type}
+            </span>
+            {isMember === true && (
+              <span
+                style={{
+                  display: 'inline-block',
+                  padding: '0.25rem 0.75rem',
+                  background: 'rgba(34, 197, 94, 0.9)',
+                  borderRadius: '20px',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  color: 'white'
+                }}
+              >
+                ✓ Member
+              </span>
+            )}
+          </div>
         </div>
 
         <div style={{ padding: '2rem' }}>
@@ -263,10 +340,54 @@ export default function ClubDetail() {
             margin: 0, 
             color: '#374151', 
             lineHeight: '1.6',
-            fontSize: '1rem'
+            fontSize: '1rem',
+            marginBottom: '1.5rem'
           }}>
             {club.club_biography}
           </p>
+
+          {/* Join Button or Error Message */}
+          {user && isMember === false && (
+            <div style={{ marginTop: '1.5rem' }}>
+              {error && (
+                <p style={{ 
+                  color: '#dc2626', 
+                  fontSize: '0.875rem', 
+                  margin: 0, 
+                  marginBottom: '0.75rem' 
+                }}>
+                  {error}
+                </p>
+              )}
+              <button
+                onClick={handleJoinClub}
+                disabled={isJoining}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: isJoining ? '#9ca3af' : '#2563eb',
+                  color: 'white',
+                  cursor: isJoining ? 'not-allowed' : 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  if (!isJoining) {
+                    e.currentTarget.style.background = '#1d4ed8'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isJoining) {
+                    e.currentTarget.style.background = '#2563eb'
+                  }
+                }}
+              >
+                {isJoining ? 'Joining...' : 'Join Club'}
+              </button>
+            </div>
+          )}
         </div>
 
         <div style={{ 
