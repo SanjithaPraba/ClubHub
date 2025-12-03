@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 type Club = {
-club_id: number
+  club_id: number
   club_name: string
   club_type: string
   club_biography: string
@@ -14,6 +14,10 @@ export default function Clubs() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
+  
+  // NEW: State to hold the search text
+  const [searchTerm, setSearchTerm] = useState('')
+
   const { user, logout } = useAuth()
   const navigate = useNavigate()
 
@@ -52,6 +56,16 @@ export default function Clubs() {
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [showProfileMenu])
+
+  // NEW: Filtering Logic
+  const filteredClubs = clubs.filter((club) => {
+    const term = searchTerm.toLowerCase()
+    return (
+      club.club_name.toLowerCase().includes(term) ||
+      club.club_biography.toLowerCase().includes(term) ||
+      club.club_type.toLowerCase().includes(term)
+    )
+  })
 
   if (loading) return (
     <div style={{ 
@@ -202,6 +216,25 @@ export default function Clubs() {
 
       <h1 style={{ marginBottom: '1.5rem', color: '#1e293b' }}>All Clubs</h1>
 
+      {/* NEW: Search Bar Input */}
+      <input
+        type="text"
+        placeholder="Search by name, type, or bio..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        style={{
+          padding: '12px 16px',
+          marginBottom: '1.5rem',
+          width: '100%',
+          maxWidth: '400px',
+          borderRadius: '8px',
+          border: '1px solid #d1d5db',
+          fontSize: '1rem',
+          outline: 'none',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+        }}
+      />
+
       <div
         style={{
           width: '100%',
@@ -228,31 +261,38 @@ export default function Clubs() {
           <span>Type</span>
         </div>
 
-        {/* Data rows */}
-        {clubs.map((club, i) => (
-          <div
-            key={club.club_id}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '2fr 2fr 1fr',
-              padding: '1rem 1.5rem',
-              borderBottom: i === clubs.length - 1 ? 'none' : '1px solid #e5e7eb',
-              backgroundColor: i % 2 === 0 ? '#f9fafb' : 'white'
-            }}
-          >
-            <span style={{ fontWeight: 600, color: '#111827' }}>{club.club_name}</span>
-            <span style={{ color: '#374151' }}>{club.club_biography}</span>
-            <span
+        {/* NEW: Map over filteredClubs instead of clubs */}
+        {filteredClubs.length > 0 ? (
+          filteredClubs.map((club, i) => (
+            <div
+              key={club.club_id}
               style={{
-                color: '#2563eb',
-                fontWeight: 500,
-                textTransform: 'capitalize'
+                display: 'grid',
+                gridTemplateColumns: '2fr 2fr 1fr',
+                padding: '1rem 1.5rem',
+                borderBottom: i === filteredClubs.length - 1 ? 'none' : '1px solid #e5e7eb',
+                backgroundColor: i % 2 === 0 ? '#f9fafb' : 'white'
               }}
             >
-              {club.club_type}
-            </span>
+              <span style={{ fontWeight: 600, color: '#111827' }}>{club.club_name}</span>
+              <span style={{ color: '#374151' }}>{club.club_biography}</span>
+              <span
+                style={{
+                  color: '#2563eb',
+                  fontWeight: 500,
+                  textTransform: 'capitalize'
+                }}
+              >
+                {club.club_type}
+              </span>
+            </div>
+          ))
+        ) : (
+          // NEW: Message when no results found
+          <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
+            No clubs found matching "{searchTerm}"
           </div>
-        ))}
+        )}
       </div>
     </div>
   )
