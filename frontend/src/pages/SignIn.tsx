@@ -1,26 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-type SignupPayload = {
-  student_id: string
-  username: string
+
+type SignInPayload = {
   school_email: string
   password: string
-  class: string
-  major: string
 }
 
-export default function Signup() {
-  const [form, setForm] = useState<SignupPayload>({
-    student_id: '',
-    username: '',
+export default function SignIn() {
+  const [form, setForm] = useState<SignInPayload>({
     school_email: '',
-    password: '',
-    class: '',
-    major: ''
+    password: ''
   })
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
   const { login, isAuthenticated } = useAuth()
@@ -40,36 +32,27 @@ export default function Signup() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    setMessage(null)
     setError(null)
 
     try {
-      const res = await fetch('/api/signup', {
+      const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
       })
-      console.log(res);
       const json = await res.json()
 
       if (!res.ok) {
-        throw new Error(json?.message || 'Signup failed')
+        throw new Error(json?.message || 'Login failed')
       }
-      setMessage(json?.message || 'Account created successfully!')
       
       // Save user info to maintain session
-      login({
-        student_id: form.student_id,
-        username: form.username,
-        school_email: form.school_email,
-        class: form.class,
-        major: form.major
-      })
-      
-      navigate('/welcome')
+      if (json.user) {
+        login(json.user)
+        navigate('/welcome')
+      }
 
     } catch (err: any) {
-        
       setError(err.message ?? 'Something went wrong')
     } finally {
       setLoading(false)
@@ -102,37 +85,11 @@ export default function Signup() {
           boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
           padding: '2rem',
           width: '100%',
-          maxWidth: 500
+          maxWidth: 400
         }}
       >
-        <h1 style={{ marginBottom: '1.5rem', color: '#1e293b', textAlign: 'center' }}>Sign up</h1>
+        <h1 style={{ marginBottom: '1.5rem', color: '#1e293b', textAlign: 'center' }}>Sign In</h1>
         <form onSubmit={onSubmit} style={{ display: 'grid', gap: 12 }}>
-          <input
-            name="student_id"
-            placeholder="Student ID"
-            value={form.student_id}
-            onChange={onChange}
-            required
-            style={{
-              padding: '0.75rem',
-              borderRadius: 6,
-              border: '1px solid #d1d5db',
-              fontSize: '1rem'
-            }}
-          />
-          <input
-            name="username"
-            placeholder="Username"
-            value={form.username}
-            onChange={onChange}
-            required
-            style={{
-              padding: '0.75rem',
-              borderRadius: 6,
-              border: '1px solid #d1d5db',
-              fontSize: '1rem'
-            }}
-          />
           <input
             name="school_email"
             type="email"
@@ -149,35 +106,9 @@ export default function Signup() {
           />
           <input
             name="password"
-            placeholder="Password"
             type="password"
+            placeholder="Password"
             value={form.password}
-            onChange={onChange}
-            required
-            style={{
-              padding: '0.75rem',
-              borderRadius: 6,
-              border: '1px solid #d1d5db',
-              fontSize: '1rem'
-            }}
-          />
-          <input
-            name="class"
-            placeholder="Class year"
-            value={form.class}
-            onChange={onChange}
-            required
-            style={{
-              padding: '0.75rem',
-              borderRadius: 6,
-              border: '1px solid #d1d5db',
-              fontSize: '1rem'
-            }}
-          />
-          <input
-            name="major"
-            placeholder="Major"
-            value={form.major}
             onChange={onChange}
             required
             style={{
@@ -202,17 +133,16 @@ export default function Signup() {
               opacity: loading ? 0.7 : 1
             }}
           >
-            {loading ? 'Submitting…' : 'Create account'}
+            {loading ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
 
-        {message && <p style={{ color: 'green', marginTop: 12, textAlign: 'center', fontSize: '0.875rem' }}>{message}</p>}
         {error && <p style={{ color: 'crimson', marginTop: 12, textAlign: 'center', fontSize: '0.875rem' }}>{error}</p>}
         
         <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: '#6b7280' }}>
-          Already have an account?{' '}
+          Don't have an account?{' '}
           <button
-            onClick={() => navigate('/signin')}
+            onClick={() => navigate('/signup')}
             style={{
               background: 'none',
               border: 'none',
@@ -222,10 +152,11 @@ export default function Signup() {
               fontSize: '0.875rem'
             }}
           >
-            Sign in
+            Sign up
           </button>
         </p>
       </div>
     </div>
   )
 }
+

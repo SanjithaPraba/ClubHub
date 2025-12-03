@@ -5,8 +5,7 @@ from flask import Flask, request, jsonify
 
 load_dotenv()
 
-# --- Database Configuration ---
-# REPLACE these values with your actual GCP MySQL database credentials
+
 DB_CONFIG = {
     'user': os.getenv('DB_USER'),      # e.g., 'clubhub_user'
     'password': os.getenv('DB_PASSWORD'),  # Your secure database password
@@ -23,10 +22,8 @@ def get_db_connection():
         print(f"Error connecting to MySQL: {err}")
         return None
 
-#Flask Set-Up
 app = Flask(__name__)
 
-# --- Core Functionality 1: New Student Sign-Up ---
 @app.route('/signup', methods=['POST'])
 def signup_student():
     """
@@ -35,36 +32,31 @@ def signup_student():
     """
     data = request.json
     
-    # 1. Basic Field Validation (Required fields based on your CREATE TABLE statement)
+    # field validation
     required_fields = ['student_id', 'username', 'school_email', 'password', 'class', 'major']
     for field in required_fields:
         if not data.get(field):
             # Return a 400 Bad Request error if any field is missing
             return jsonify({'success': False, 'message': f'Missing required field: {field}'}), 400
 
-    # 2. UVA Email Validation
     school_email = data['school_email'].lower()
     if not school_email.endswith('@virginia.edu'):
         # Return an error if the email doesn't meet the requirement
         return jsonify({'success': False, 'message': 'Registration requires a valid @virginia.edu email.'}), 400
 
-    # 3. Database Insertion
+    # db insertion
     conn = get_db_connection()
     if not conn:
         return jsonify({'success': False, 'message': 'Database connection error.'}), 500
-
-    # NOTE: In a real app, you should securely hash the password (e.g., using Flask-Bcrypt)
-    # For this assignment, we are using the 'hashedpw' concept from your sample data.
     insert_query = """
     INSERT INTO student (student_id, username, school_email, password, class, major)
     VALUES (%s, %s, %s, %s, %s, %s)
     """
-    # NOTE: student_id must be unique and is manually provided here per your sample data [cite: 16, 119]
     values = (
         data['student_id'], 
         data['username'], 
         school_email, 
-        data['password'], # Placeholder for hashed password
+        data['password'],
         data['class'], 
         data['major']
     )
@@ -74,13 +66,10 @@ def signup_student():
         cursor.execute(insert_query, values)
         conn.commit()
         
-        # Security Note: This is an example of Application-Level Security.
-        # The application enforces the '@virginia.edu' rule before the database ever sees the request.
         
         return jsonify({'success': True, 'message': 'Account created successfully!'}), 201
     
     except mysql.connector.Error as err:
-        # Catch potential database errors (e.g., UNIQUE constraint violations for student_id, username, or email) [cite: 17]
         conn.rollback()
         return jsonify({'success': False, 'message': f'Database error: {err}'}), 500
     finally:
@@ -88,13 +77,66 @@ def signup_student():
             cursor.close()
             conn.close()
 
+@app.route('/login', methods=['POST'])
+def login_student():
+    """
+    Handles student login by verifying credentials.
+    Returns user data if credentials are valid.
+    """
+    data = request.json
+    
+    if not data.get('school_email') or not data.get('password'):
+        return jsonify({'success': False, 'message': 'Email and password are required.'}), 400
+    
+    school_email = data['school_email'].lower()
+    password = data['password']
+    
+    # Database query to find user
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Database connection error.'}), 500
+    
+    try:
+        cursor = conn.cursor(dictionary=True)
+        query = """
+        SELECT student_id, username, school_email, password, class, major
+        FROM student
+        WHERE school_email = %s
+        """
+        cursor.execute(query, (school_email,))
+        user = cursor.fetchone()
+        
+        if not user:
+            return jsonify({'success': False, 'message': 'Invalid email or password.'}), 401
+        
+        #Not doing hashed passwords so don't use your real password when you sign up w testing data lmao
+        if user['password'] != password:
+            return jsonify({'success': False, 'message': 'Invalid email or password.'}), 401
+        
+        # Return user data (excluding password)
+        return jsonify({
+            'success': True,
+            'message': 'Login successful!',
+            'user': {
+                'student_id': str(user['student_id']),
+                'username': user['username'],
+                'school_email': user['school_email'],
+                'class': user['class'],
+                'major': user['major']
+            }
+        }), 200
+    
+    except mysql.connector.Error as err:
+        return jsonify({'success': False, 'message': f'Database error: {err}'}), 500
+    finally:
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
 
-# --- Simple Landing Page Placeholder ---
+
 @app.route('/', methods=['GET'])
 def home():
     """Serves the simple landing page (pre-login view)."""
-    # This is where your limited, simple HTML for the sign-up page would be rendered in a full app.
-    # For now, we return a simple message.
     return "Welcome to ClubHub! Please sign up to explore clubs and events."
 
 @app.route('/test-db-connection', methods=['GET'])
