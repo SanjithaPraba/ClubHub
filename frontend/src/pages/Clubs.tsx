@@ -28,8 +28,28 @@ export default function Clubs() {
     fetchClubs()
   }, [])
 
-  if (loading) return <p style={{ textAlign: 'center' }}>Loading clubs...</p>
-  if (error) return <p style={{ color: 'crimson', textAlign: 'center' }}>{error}</p>
+  if (loading) return (
+    <div style={{ 
+      display: 'flex', 
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      minHeight: '100vh',
+      fontFamily: 'system-ui'
+    }}>
+      <p style={{ textAlign: 'center' }}>Loading clubs...</p>
+    </div>
+  )
+  if (error) return (
+    <div style={{ 
+      display: 'flex', 
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      minHeight: '100vh',
+      fontFamily: 'system-ui'
+    }}>
+      <p style={{ color: 'crimson', textAlign: 'center' }}>{error}</p>
+    </div>
+  )
 
   return (
     <div
@@ -37,10 +57,17 @@ export default function Clubs() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
+        justifyContent: 'center',
         padding: '2rem',
         fontFamily: 'system-ui',
         background: '#f9fafb',
-        minHeight: '100vh'
+        height: '100vh',
+        width: '100%',
+        margin: 0,
+        boxSizing: 'border-box',
+        position: 'absolute',
+        top: 0,
+        left: 0
       }}
     >
       <h1 style={{ marginBottom: '1.5rem', color: '#1e293b' }}>All Clubs</h1>
