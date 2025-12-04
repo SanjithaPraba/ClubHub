@@ -3,6 +3,8 @@ from dotenv import load_dotenv
 import mysql.connector
 from flask import Flask, request, jsonify
 from flask import session
+from werkzeug.security import generate_password_hash, check_password_hash
+
 
 load_dotenv()
 
