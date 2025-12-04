@@ -266,12 +266,21 @@ export default function Clubs() {
           filteredClubs.map((club, i) => (
             <div
               key={club.club_id}
+              onClick={() => navigate(`/clubs/${club.club_id}`, { state: { club } })}
               style={{
                 display: 'grid',
                 gridTemplateColumns: '2fr 2fr 1fr',
                 padding: '1rem 1.5rem',
                 borderBottom: i === filteredClubs.length - 1 ? 'none' : '1px solid #e5e7eb',
-                backgroundColor: i % 2 === 0 ? '#f9fafb' : 'white'
+                backgroundColor: i % 2 === 0 ? '#f9fafb' : 'white',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#e0e7ff'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = i % 2 === 0 ? '#f9fafb' : 'white'
               }}
             >
               <span style={{ fontWeight: 600, color: '#111827' }}>{club.club_name}</span>
