@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 import mysql.connector
 from flask import Flask, request, jsonify
+from flask import session
 
 load_dotenv()
 
@@ -193,6 +194,55 @@ def get_clubs():
         cursor.close()
         conn.close()
 
+
+@app.route('/my_clubs', methods=['GET'])
+def get_my_clubs():
+    """
+    Returns all of the associated student's clubs.
+    """
+
+    sid = request.args.get('sid')
+    if not sid:
+        return jsonify({
+            'success': False,
+            'message': 'Missing student ID (sid).'
+        }), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Database connection failed.'}), 500
+    
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+        query = """ 
+                (SELECT c.club_id,c.club_name,c.club_type, c.club_biography
+                FROM member m
+                JOIN club c on m.club_id = c.club_id
+                WHERE m.student_id=%s)
+
+                UNION
+                (SELECT c.club_id,c.club_name,c.club_type, c.club_biography
+                FROM manages mg
+                JOIN club c on mg.club_id = c.club_id
+                WHERE mg.student_id=%s
+                )
+
+
+        """
+        cursor.execute(query,(sid,sid))
+        rows = cursor.fetchall()
+        return jsonify({'success': True, 'clubs': rows}), 200
+    
+    except mysql.connector.Error as err:
+        return jsonify({'success': False, 'message': f'Database error: {err}'}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+
+
 @app.route('/clubs/<int:club_id>/membership', methods=['GET'])
 def check_membership(club_id):
     """
@@ -341,9 +391,12 @@ def get_posts():
         cursor.close()
         conn.close()
 
+
 if __name__ == '__main__':
     # You can uncomment this line to test the connection immediately
     # test_connection()
     # Flask runs on port 5000 by default
     # Change host to '0.0.0.0' if you need to access it from outside your machine (e.g., from a separate frontend container)
     app.run(debug=True)
+
+
