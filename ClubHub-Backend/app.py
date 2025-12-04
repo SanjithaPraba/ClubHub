@@ -194,6 +194,7 @@ def get_clubs():
         cursor.close()
         conn.close()
 
+
 @app.route('/my_clubs', methods=['GET'])
 def get_my_clubs():
     """
@@ -240,6 +241,155 @@ def get_my_clubs():
         conn.close()
 
 
+
+
+@app.route('/clubs/<int:club_id>/membership', methods=['GET'])
+def check_membership(club_id):
+    """
+    Checks if a student is a member of a specific club.
+    Requires student_id as a query parameter.
+    """
+    student_id = request.args.get('student_id')
+    if not student_id:
+        return jsonify({'success': False, 'message': 'student_id is required.'}), 400
+    
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Database connection failed.'}), 500
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+        # Check if membership exists (assuming table name is 'student_club' or 'membership')
+        # Try common table names
+        query = """
+        SELECT * FROM member
+        WHERE student_id = %s AND club_id = %s
+        """
+        cursor.execute(query, (student_id, club_id))
+        membership = cursor.fetchone()
+        
+        is_member = membership is not None
+        return jsonify({
+            'success': True, 
+            'is_member': is_member
+        }), 200
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route('/clubs/<int:club_id>/join', methods=['POST'])
+def join_club(club_id):
+    """
+    Adds a student to a club.
+    Requires student_id in the request body.
+    """
+    data = request.json
+    if not data or not data.get('student_id'):
+        return jsonify({'success': False, 'message': 'student_id is required.'}), 400
+    
+    student_id = data['student_id']
+    
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Database connection failed.'}), 500
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+        
+        # First check if already a member
+        check_query = """
+        SELECT * FROM member 
+        WHERE student_id = %s AND club_id = %s
+        """
+        cursor.execute(check_query, (student_id, club_id))
+        existing = cursor.fetchone()
+        
+        if existing:
+            return jsonify({
+                'success': False, 
+                'message': 'Student is already a member of this club.'
+            }), 400
+        
+        # Insert membership (try student_club table first)
+        insert_query = """
+        INSERT INTO member (student_id, club_id)
+        VALUES (%s, %s)
+        """
+        cursor.execute(insert_query, (student_id, club_id))
+        conn.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Successfully joined the club!'
+        }), 201
+    finally:
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
+
+@app.route('/make_post', methods=['POST'])
+def create_post():
+    data = request.json
+    
+    # 1. Validation
+    if not data.get('student_id') or not data.get('header') or not data.get('body'):
+        return jsonify({'success': False, 'message': 'Missing required fields'}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Database connection error'}), 500
+
+    try:
+        cursor = conn.cursor()
+        
+        # 2. Insert ONLY the content. MySQL handles the post_id automatically.
+        query = "INSERT INTO post (student_id, post_header, post_body) VALUES (%s, %s, %s)"
+        values = (data['student_id'], data['header'], data['body'])
+        
+        cursor.execute(query, values)
+        conn.commit()
+        
+        # 3. Retrieve the auto-generated ID (e.g., 207)
+        new_post_id = cursor.lastrowid
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Post created successfully!',
+            'post': {
+                'post_id': new_post_id,
+                'student_id': data['student_id'],
+                'post_header': data['header'],
+                'post_body': data['body']
+            }
+        }), 201
+
+    except mysql.connector.Error as err:
+        return jsonify({'success': False, 'message': f'Database error: {err}'}), 500
+    finally:
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
+
+@app.route('/get_posts', methods=['GET'])
+def get_posts():
+    """
+    Returns all posts from the 'post' table.
+    """
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Database connection failed.'}), 500
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM post")
+        rows = cursor.fetchall()
+        return jsonify({'success': True, 'post': rows}), 200
+
+    except mysql.connector.Error as err:
+        return jsonify({'success': False, 'message': f'Database error: {err}'}), 500
+    finally:
+        cursor.close()
+        conn.close()
 
 
 if __name__ == '__main__':

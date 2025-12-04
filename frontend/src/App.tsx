@@ -5,6 +5,7 @@ import SignIn from './pages/SignIn'
 import Welcome from './pages/Welcome'
 import Clubs from './pages/Clubs'
 import MyClubs from './pages/MyClubs'
+import ClubDetail from './pages/ClubDetail'
 
 
 function RootRedirect() {
@@ -21,6 +22,7 @@ function AppRoutes() {
       <Route path="/welcome" element={<Welcome />} />
       <Route path="/clubs" element={<Clubs />} />
       <Route path="/my-clubs" element={<MyClubs />} />
+      <Route path="/clubs/:clubId" element={<ClubDetail />} />
     </Routes>
   )
 }
