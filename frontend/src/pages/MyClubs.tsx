@@ -14,13 +14,8 @@ export default function MyClubs() {
   const [clubs, setClubs] = useState<Club[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const navigate = useNavigate()
-
-  const handleLogout = () => {
-    logout()
-    navigate('/signup')
-  }
 
   useEffect(() => {
     if (!user) {
@@ -82,11 +77,12 @@ export default function MyClubs() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
         padding: '2rem',
+        paddingTop: '4rem',
         fontFamily: 'system-ui',
         background: '#f9fafb',
-        height: '100vh',
+        minHeight: '100vh',
         width: '100%',
         margin: 0,
         boxSizing: 'border-box',
@@ -157,12 +153,21 @@ export default function MyClubs() {
         {clubs.map((club, i) => (
           <div
             key={club.club_id}
+            onClick={() => navigate(`/clubs/${club.club_id}`, { state: { club } })}
             style={{
               display: 'grid',
               gridTemplateColumns: '2fr 2fr 1fr',
               padding: '1rem 1.5rem',
               borderBottom: i === clubs.length - 1 ? 'none' : '1px solid #e5e7eb',
               backgroundColor: i % 2 === 0 ? '#f9fafb' : 'white',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#e0e7ff'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = i % 2 === 0 ? '#f9fafb' : 'white'
             }}
           >
             <span style={{ fontWeight: 600, color: '#111827' }}>

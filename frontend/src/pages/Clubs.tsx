@@ -109,6 +109,35 @@ export default function Clubs() {
         left: 0
       }}
     >
+      {/* Home button in top left */}
+      <button
+        onClick={() => navigate('/')}
+        style={{
+          position: 'fixed',
+          top: '2rem',
+          left: '2rem',
+          padding: '0.5rem 1rem',
+          borderRadius: '6px',
+          border: 'none',
+          background: '#6b7280',
+          color: 'white',
+          fontSize: '0.875rem',
+          fontWeight: 500,
+          cursor: 'pointer',
+          transition: 'background-color 0.2s',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          zIndex: 100
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = '#4b5563'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = '#6b7280'
+        }}
+      >
+        Home
+      </button>
+
       {/* Profile Icon in top right */}
       <div data-profile-menu style={{ position: 'fixed', top: '2rem', right: '2rem', zIndex: 100 }}>
         <button
