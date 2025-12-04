@@ -202,6 +202,24 @@ export default function Clubs() {
 
       <h1 style={{ marginBottom: '1.5rem', color: '#1e293b' }}>All Clubs</h1>
 
+      <button
+        onClick={() => navigate('/my-clubs')}
+        style={{
+          padding: '0.5rem 1rem',
+          borderRadius: 9999,
+          border: 'none',
+          background: '#2563eb',
+          color: 'white',
+          fontSize: '0.875rem',
+          fontWeight: 500,
+          cursor: 'pointer',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          marginBottom:'2rem',
+        }}
+      >
+        My Clubs
+  </button>
+
       <div
         style={{
           width: '100%',

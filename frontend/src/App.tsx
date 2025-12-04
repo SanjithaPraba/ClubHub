@@ -4,6 +4,8 @@ import Signup from './pages/Signup'
 import SignIn from './pages/SignIn'
 import Welcome from './pages/Welcome'
 import Clubs from './pages/Clubs'
+import MyClubs from './pages/MyClubs'
+
 
 function RootRedirect() {
   const { isAuthenticated } = useAuth()
@@ -18,6 +20,7 @@ function AppRoutes() {
       <Route path="/signin" element={<SignIn />} />
       <Route path="/welcome" element={<Welcome />} />
       <Route path="/clubs" element={<Clubs />} />
+      <Route path="/my-clubs" element={<MyClubs />} />
     </Routes>
   )
 }
