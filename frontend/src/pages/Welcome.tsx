@@ -57,7 +57,8 @@ export default function Welcome() {
         const res = await fetch('/api/get_posts')
         const json = await res.json()
         if (res.ok) {
-          setPosts(json.post || [])
+          const sortedPosts = (json.post || []).sort((a: Post, b: Post) => b.post_id - a.post_id)
+          setPosts(sortedPosts)
         }
       } catch (err) {
         console.error("Failed to fetch posts:", err)
