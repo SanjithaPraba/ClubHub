@@ -193,6 +193,70 @@ def get_clubs():
         cursor.close()
         conn.close()
 
+@app.route('/make_post', methods=['POST'])
+def create_post():
+    data = request.json
+    
+    # 1. Validation
+    if not data.get('student_id') or not data.get('header') or not data.get('body'):
+        return jsonify({'success': False, 'message': 'Missing required fields'}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Database connection error'}), 500
+
+    try:
+        cursor = conn.cursor()
+        
+        # 2. Insert ONLY the content. MySQL handles the post_id automatically.
+        query = "INSERT INTO post (student_id, post_header, post_body) VALUES (%s, %s, %s)"
+        values = (data['student_id'], data['header'], data['body'])
+        
+        cursor.execute(query, values)
+        conn.commit()
+        
+        # 3. Retrieve the auto-generated ID (e.g., 207)
+        new_post_id = cursor.lastrowid
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Post created successfully!',
+            'post': {
+                'post_id': new_post_id,
+                'student_id': data['student_id'],
+                'post_header': data['header'],
+                'post_body': data['body']
+            }
+        }), 201
+
+    except mysql.connector.Error as err:
+        return jsonify({'success': False, 'message': f'Database error: {err}'}), 500
+    finally:
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
+
+@app.route('/get_posts', methods=['GET'])
+def get_posts():
+    """
+    Returns all posts from the 'post' table.
+    """
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Database connection failed.'}), 500
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM post")
+        rows = cursor.fetchall()
+        return jsonify({'success': True, 'post': rows}), 200
+
+    except mysql.connector.Error as err:
+        return jsonify({'success': False, 'message': f'Database error: {err}'}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
 if __name__ == '__main__':
     # You can uncomment this line to test the connection immediately
     # test_connection()
