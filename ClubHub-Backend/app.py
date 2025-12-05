@@ -4,6 +4,9 @@ import mysql.connector
 from flask import Flask, request, jsonify
 from flask import session
 from werkzeug.security import generate_password_hash, check_password_hash
+import csv
+import io
+from flask import Response
 
 
 load_dotenv()
@@ -881,6 +884,59 @@ def manage_funding_application(application_id):
 
     except mysql.connector.Error as err:
         conn.rollback()
+        return jsonify({'success': False, 'message': f'Database error: {err}'}), 500
+    finally:
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
+
+@app.route('/clubs/<int:club_id>/expenses/export', methods=['GET'])
+def export_club_expenses(club_id):
+    """
+    Generates and downloads a CSV file of the club's expenses.
+    """
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Database connection failed.'}), 500
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+
+        # 1. Fetch the expense data
+        query = """
+            SELECT 
+                expense_date,
+                expense_description,
+                expense_amount
+            FROM expense
+            WHERE club_id = %s
+            ORDER BY expense_date DESC
+        """
+        cursor.execute(query, (club_id,))
+        rows = cursor.fetchall()
+
+        # 2. Create a CSV in memory (StringIO)
+        si = io.StringIO()
+        cw = csv.writer(si)
+        
+        # 3. Write Header and Data
+        cw.writerow(['Date', 'Description', 'Amount']) # CSV Header
+        for row in rows:
+            cw.writerow([
+                row['expense_date'], 
+                row['expense_description'], 
+                row['expense_amount']
+            ])
+
+        # 4. Create the response object
+        output = si.getvalue()
+        return Response(
+            output,
+            mimetype="text/csv",
+            headers={"Content-disposition": f"attachment; filename=club_{club_id}_expenses.csv"}
+        )
+
+    except mysql.connector.Error as err:
         return jsonify({'success': False, 'message': f'Database error: {err}'}), 500
     finally:
         if conn and conn.is_connected():

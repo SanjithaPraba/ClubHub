@@ -118,6 +118,34 @@ export default function ClubExpenses() {
     }
   }
 
+  const handleExport = async () => {
+    try {
+      const res = await fetch(`/api/clubs/${clubIdNumber}/expenses/export`)
+      
+      if (!res.ok) {
+        throw new Error('Failed to export expenses')
+      }
+
+      // Create a Blob from the response
+      const blob = await res.blob()
+      
+      // Create a temporary link to trigger the download
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `club_${clubIdNumber}_expenses.csv`
+      document.body.appendChild(a)
+      a.click()
+      
+      // Cleanup
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (err) {
+      console.error(err)
+      alert('Failed to download CSV report.')
+    }
+  }
+
   if (loading) return <div style={{ padding: '2rem' }}>Loading expenses...</div>
 
   return (
@@ -149,6 +177,21 @@ export default function ClubExpenses() {
           <h1 style={{ margin: 0, color: '#1e293b' }}>
             Expense Log 💰
           </h1>
+          <button
+              onClick={handleExport}
+              style={{
+                padding: '0.6rem 1.2rem',
+                background: '#16a34a', // Green color for Excel/CSV vibes
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Export CSV
+            </button>
+            
           <button
             onClick={() => setShowCreate(!showCreate)}
             style={{
