@@ -15,7 +15,6 @@ export default function Clubs() {
   const [error, setError] = useState<string | null>(null)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   
-  // NEW: State to hold the search text
   const [searchTerm, setSearchTerm] = useState('')
 
   const { user, logout } = useAuth()
@@ -57,7 +56,6 @@ export default function Clubs() {
     }
   }, [showProfileMenu])
 
-  // NEW: Filtering Logic
   const filteredClubs = clubs.filter((club) => {
     const term = searchTerm.toLowerCase()
     return (
@@ -96,17 +94,20 @@ export default function Clubs() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
+        // --- FIX START ---
+        justifyContent: 'flex-start', // Allows content to flow down
         padding: '2rem',
+        paddingTop: '6rem',          // Add space for fixed header elements
         fontFamily: 'system-ui',
         background: '#f9fafb',
-        height: '100vh',
+        minHeight: '100vh',          // Allows page to grow beyond viewport
         width: '100%',
         margin: 0,
         boxSizing: 'border-box',
         position: 'absolute',
         top: 0,
         left: 0
+        // --- FIX END ---
       }}
     >
       {/* Home button in top left */}
@@ -261,9 +262,9 @@ export default function Clubs() {
         }}
       >
         My Clubs
-  </button>
+      </button>
 
-      {/* NEW: Search Bar Input */}
+      {/* Search Bar Input */}
       <input
         type="text"
         placeholder="Search by name, type, or bio..."
@@ -281,7 +282,6 @@ export default function Clubs() {
           boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
         }}
       />
-
 
       <div
         style={{
@@ -309,7 +309,6 @@ export default function Clubs() {
           <span>Type</span>
         </div>
 
-        {/* NEW: Map over filteredClubs instead of clubs */}
         {filteredClubs.length > 0 ? (
           filteredClubs.map((club, i) => (
             <div
@@ -345,7 +344,6 @@ export default function Clubs() {
             </div>
           ))
         ) : (
-          // NEW: Message when no results found
           <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
             No clubs found matching "{searchTerm}"
           </div>
