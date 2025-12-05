@@ -356,6 +356,14 @@ def get_club_events(club_id):
         cursor.execute(query, (club_id,))
         events = cursor.fetchall()
 
+        # --- FIX START: Convert timedelta objects to strings ---
+        for event in events:
+            if event.get('start_time'):
+                event['start_time'] = str(event['start_time'])
+            if event.get('end_time'):
+                event['end_time'] = str(event['end_time'])
+        # --- FIX END ---
+
         return jsonify({'success': True, 'events': events}), 200
 
     except mysql.connector.Error as err:
