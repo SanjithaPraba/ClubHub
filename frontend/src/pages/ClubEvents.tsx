@@ -9,7 +9,7 @@ type Club = {
 }
 
 type EventItem = {
-  event_id?: number
+  event_id: number
   event_name: string
   event_description?: string | null
   event_type?: string | null
@@ -18,6 +18,8 @@ type EventItem = {
   end_time?: string | null
   venue?: string | null
 }
+
+type RSVPStatus = 'yes' | 'no' | 'maybe'
 
 export default function ClubEvents() {
   const { clubId } = useParams()
@@ -41,6 +43,10 @@ export default function ClubEvents() {
   const [newVenue, setNewVenue] = useState('')
   const [newStartTime, setNewStartTime] = useState('')
   const [newEndTime, setNewEndTime] = useState('')
+  const [rsvpStatus, setRsvpStatus] = useState<Record<number, RSVPStatus | null>>(
+    {}
+  )
+  const [rsvpSavingId, setRsvpSavingId] = useState<number | null>(null)
 
   const clubIdNumber = clubFromState?.club_id || Number(clubId)
   const isAdmin =
@@ -51,28 +57,55 @@ export default function ClubEvents() {
   // Fetch events
   useEffect(() => {
     if (!clubIdNumber) return
-
-    const fetchEvents = async () => {
+  
+    const fetchEventsAndRsvps = async () => {
       setLoading(true)
       setError(null)
       try {
+
         const res = await fetch(`/api/clubs/${clubIdNumber}/events`)
         const json = await res.json()
-        if (res.ok) {
-          setEvents(json.events || [])
-        } else {
+  
+        if (!res.ok) {
           setError(json.message || 'Failed to load events')
+          setEvents([])
+          setLoading(false)
+          return
+        }
+  
+        const eventsData: EventItem[] = json.events || []
+        setEvents(eventsData)
+  
+ 
+        if (user?.student_id) {
+          const rsvpRes = await fetch(
+            `/api/clubs/${clubIdNumber}/rsvps?student_id=${user.student_id}`
+          )
+          const rsvpJson = await rsvpRes.json()
+  
+          if (rsvpRes.ok) {
+            const map: Record<number, RSVPStatus | null> = {}
+            ;(rsvpJson.rsvps || []).forEach(
+              (row: { event_id: number; status: RSVPStatus }) => {
+                map[row.event_id] = row.status
+              }
+            )
+            setRsvpStatus(map)
+          } else {
+  
+            console.warn('Failed to load RSVPs:', rsvpJson.message)
+          }
         }
       } catch (err: any) {
         setError(err.message || 'Failed to load events')
+        setEvents([])
       } finally {
         setLoading(false)
       }
     }
-
-    fetchEvents()
-  }, [clubIdNumber])
-
+  
+    fetchEventsAndRsvps()
+  }, [clubIdNumber, user?.student_id])
   // Admin creates an event
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -130,6 +163,45 @@ export default function ClubEvents() {
       setSaving(false)
     }
   }
+
+  const handleRSVP = async (eventId: number, status: RSVPStatus) => {
+    if (!user?.student_id) {
+      alert('You must be logged in to RSVP.')
+      return
+    }
+  
+    setRsvpSavingId(eventId)
+    setError(null)
+  
+    try {
+      const res = await fetch(`/api/events/${eventId}/rsvp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: user.student_id,
+          status,
+        }),
+      })
+  
+      const json = await res.json()
+  
+      if (!res.ok) {
+        setError(json.message || 'Failed to save RSVP')
+        return
+      }
+  
+      setRsvpStatus((prev) => ({
+        ...prev,
+        [eventId]: status,
+      }))
+    } catch (err: any) {
+      setError(err.message || 'Failed to save RSVP')
+    } finally {
+      setRsvpSavingId(null)
+    }
+  }
+  
+
 
   const handleBack = () => navigate(-1)
 
@@ -446,6 +518,43 @@ export default function ClubEvents() {
                       Venue: {e.venue}
                     </p>
                   )}
+                  {/* RSVP buttons */}
+                  <div
+                    style={{
+                        marginTop: '0.6rem',
+                        display: 'flex',
+                        gap: '0.4rem',
+                        flexWrap: 'wrap',
+                        }}
+                    >
+                    {(['yes', 'no', 'maybe'] as RSVPStatus[]).map((status) => {
+                        const current = rsvpStatus[e.event_id] || null
+                        const selected = current === status
+                        const disabled = rsvpSavingId === e.event_id
+
+                        return (
+                        <button
+                            key={status}
+                            type="button"
+                            onClick={() => handleRSVP(e.event_id, status)}
+                            disabled={disabled}
+                            style={{
+                            padding: '0.25rem 0.7rem',
+                            borderRadius: 9999,
+                            border: selected ? '1px solid #2563eb' : '1px solid #d1d5db',
+                            background: selected ? '#2563eb' : 'white',
+                            color: selected ? 'white' : '#374151',
+                            cursor: disabled ? 'not-allowed' : 'pointer',
+                            fontSize: '0.78rem',
+                            fontWeight: 500,
+                            textTransform: 'capitalize',
+                            }}
+                        >
+                            {status}
+                        </button>
+                        )
+                     })}
+                    </div>
                 </div>
               ))}
             </div>
@@ -455,3 +564,4 @@ export default function ClubEvents() {
     </div>
   )
 }
+
