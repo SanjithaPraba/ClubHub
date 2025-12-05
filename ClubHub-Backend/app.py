@@ -178,10 +178,11 @@ def test_db_connection():
             cursor.close()
             conn.close()
             print("Connection closed after test.")
-@app.route('/clubs', methods=['GET'])
-def get_clubs():
+@app.route('/clubs', methods=['GET', 'POST'])
+def manage_clubs():
     """
-    Returns all clubs from the 'club' table.
+    GET  -> Returns all clubs.
+    POST -> Creates a new club with the requester as the admin.
     """
     conn = get_db_connection()
     if not conn:
@@ -189,15 +190,56 @@ def get_clubs():
 
     try:
         cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM club")
-        rows = cursor.fetchall()
-        return jsonify({'success': True, 'clubs': rows}), 200
+
+        # --- GET REQUEST: List all clubs ---
+        if request.method == 'GET':
+            cursor.execute("SELECT * FROM club")
+            rows = cursor.fetchall()
+            return jsonify({'success': True, 'clubs': rows}), 200
+
+        # --- POST REQUEST: Create a new club ---
+        data = request.json or {}
+        required_fields = ['club_name', 'club_type', 'club_biography', 'student_id']
+        
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'success': False, 'message': f'Missing required field: {field}'}), 400
+
+        # Insert new club
+        query = """
+            INSERT INTO club (club_name, club_type, club_biography, admin_id)
+            VALUES (%s, %s, %s, %s)
+        """
+        values = (
+            data['club_name'],
+            data['club_type'],
+            data['club_biography'],
+            data['student_id'] # The student creating it becomes the admin
+        )
+        
+        cursor.execute(query, values)
+        conn.commit()
+        
+        # Get the new ID to send back to frontend
+        new_club_id = cursor.lastrowid
+        
+        new_club = {
+            'club_id': new_club_id,
+            'club_name': data['club_name'],
+            'club_type': data['club_type'],
+            'club_biography': data['club_biography'],
+            'admin_id': data['student_id']
+        }
+
+        return jsonify({'success': True, 'message': 'Club created!', 'club': new_club}), 201
 
     except mysql.connector.Error as err:
+        conn.rollback()
         return jsonify({'success': False, 'message': f'Database error: {err}'}), 500
     finally:
-        cursor.close()
-        conn.close()
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
 
 
 @app.route('/my_clubs', methods=['GET'])

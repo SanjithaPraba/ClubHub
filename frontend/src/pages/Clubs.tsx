@@ -14,8 +14,14 @@ export default function Clubs() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
-  
   const [searchTerm, setSearchTerm] = useState('')
+
+  // --- NEW STATE FOR CREATION MODAL ---
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newType, setNewType] = useState('')
+  const [newBio, setNewBio] = useState('')
+  const [creating, setCreating] = useState(false)
 
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -56,6 +62,46 @@ export default function Clubs() {
     }
   }, [showProfileMenu])
 
+  // --- NEW FUNCTION TO HANDLE CREATION ---
+  const handleCreateClub = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user) {
+      alert('You must be logged in to create a club.')
+      return
+    }
+    setCreating(true)
+
+    try {
+      const res = await fetch('/api/clubs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: user.student_id,
+          club_name: newName,
+          club_type: newType,
+          club_biography: newBio
+        })
+      })
+
+      const json = await res.json()
+      if (res.ok && json.success) {
+        // Add new club to list and close modal
+        setClubs(prev => [...prev, json.club])
+        setShowCreateModal(false)
+        setNewName('')
+        setNewType('')
+        setNewBio('')
+      } else {
+        alert('Failed to create club: ' + (json.message || 'Unknown error'))
+      }
+    } catch (err) {
+      console.error(err)
+      alert('Error connecting to server')
+    } finally {
+      setCreating(false)
+    }
+  }
+
   const filteredClubs = clubs.filter((club) => {
     const term = searchTerm.toLowerCase()
     return (
@@ -66,24 +112,12 @@ export default function Clubs() {
   })
 
   if (loading) return (
-    <div style={{ 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center', 
-      minHeight: '100vh',
-      fontFamily: 'system-ui'
-    }}>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', fontFamily: 'system-ui' }}>
       <p style={{ textAlign: 'center' }}>Loading clubs...</p>
     </div>
   )
   if (error) return (
-    <div style={{ 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center', 
-      minHeight: '100vh',
-      fontFamily: 'system-ui'
-    }}>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', fontFamily: 'system-ui' }}>
       <p style={{ color: 'crimson', textAlign: 'center' }}>{error}</p>
     </div>
   )
@@ -94,23 +128,21 @@ export default function Clubs() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        // --- FIX START ---
-        justifyContent: 'flex-start', // Allows content to flow down
+        justifyContent: 'flex-start',
         padding: '2rem',
-        paddingTop: '6rem',          // Add space for fixed header elements
+        paddingTop: '6rem',
         fontFamily: 'system-ui',
         background: '#f9fafb',
-        minHeight: '100vh',          // Allows page to grow beyond viewport
+        minHeight: '100vh',
         width: '100%',
         margin: 0,
         boxSizing: 'border-box',
         position: 'absolute',
         top: 0,
         left: 0
-        // --- FIX END ---
       }}
     >
-      {/* Home button in top left */}
+      {/* Home button */}
       <button
         onClick={() => navigate('/')}
         style={{
@@ -125,21 +157,13 @@ export default function Clubs() {
           fontSize: '0.875rem',
           fontWeight: 500,
           cursor: 'pointer',
-          transition: 'background-color 0.2s',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
           zIndex: 100
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = '#4b5563'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = '#6b7280'
         }}
       >
         Home
       </button>
 
-      {/* Profile Icon in top right */}
+      {/* Profile Icon */}
       <div data-profile-menu style={{ position: 'fixed', top: '2rem', right: '2rem', zIndex: 100 }}>
         <button
           onClick={() => setShowProfileMenu(!showProfileMenu)}
@@ -157,39 +181,15 @@ export default function Clubs() {
             justifyContent: 'center',
             cursor: 'pointer',
             boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            transition: 'box-shadow 0.2s',
             color: 'white',
             fontWeight: 600,
             fontSize: '14px',
             padding: 0
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
-          }}
         >
-          {user?.username ? (
-            user.username.charAt(0).toUpperCase()
-          ) : (
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-          )}
+          {user?.username ? user.username.charAt(0).toUpperCase() : 'U'}
         </button>
 
-        {/* Profile Dropdown Menu */}
         {showProfileMenu && (
           <div
             data-profile-menu
@@ -207,15 +207,8 @@ export default function Clubs() {
             }}
           >
             <div style={{ padding: '1rem', borderBottom: '1px solid #e5e7eb' }}>
-              <p style={{ fontWeight: 600, color: '#111827', margin: 0, marginBottom: '0.5rem' }}>
-                {user?.username || 'User'}
-              </p>
-              <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0, marginBottom: '0.25rem' }}>
-                {user?.school_email}
-              </p>
-              <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>
-                ID: {user?.student_id}
-              </p>
+              <p style={{ fontWeight: 600, color: '#111827', margin: 0 }}>{user?.username || 'User'}</p>
+              <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>{user?.school_email}</p>
             </div>
             <button
               onClick={handleLogout}
@@ -224,18 +217,9 @@ export default function Clubs() {
                 padding: '0.75rem 1rem',
                 background: 'white',
                 border: 'none',
-                borderTop: '1px solid #e5e7eb',
                 color: '#dc2626',
                 cursor: 'pointer',
-                fontSize: '0.875rem',
-                fontWeight: 500,
                 textAlign: 'left'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#fef2f2'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'white'
               }}
             >
               Logout
@@ -246,25 +230,40 @@ export default function Clubs() {
 
       <h1 style={{ marginBottom: '1.5rem', color: '#1e293b' }}>All Clubs</h1>
 
-      <button
-        onClick={() => navigate('/my-clubs')}
-        style={{
-          padding: '0.5rem 1rem',
-          borderRadius: 9999,
-          border: 'none',
-          background: '#2563eb',
-          color: 'white',
-          fontSize: '0.875rem',
-          fontWeight: 500,
-          cursor: 'pointer',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          marginBottom:'2rem',
-        }}
-      >
-        My Clubs
-      </button>
+      {/* Actions Row */}
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+        <button
+          onClick={() => navigate('/my-clubs')}
+          style={{
+            padding: '0.5rem 1rem',
+            borderRadius: 9999,
+            border: 'none',
+            background: '#2563eb',
+            color: 'white',
+            fontSize: '0.875rem',
+            fontWeight: 500,
+            cursor: 'pointer',
+          }}
+        >
+          My Clubs
+        </button>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          style={{
+            padding: '0.5rem 1rem',
+            borderRadius: 9999,
+            border: 'none',
+            background: '#10b981',
+            color: 'white',
+            fontSize: '0.875rem',
+            fontWeight: 500,
+            cursor: 'pointer',
+          }}
+        >
+          + Create New Club
+        </button>
+      </div>
 
-      {/* Search Bar Input */}
       <input
         type="text"
         placeholder="Search by name, type, or bio..."
@@ -279,7 +278,6 @@ export default function Clubs() {
           border: '1px solid #d1d5db',
           fontSize: '1rem',
           outline: 'none',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
         }}
       />
 
@@ -293,7 +291,6 @@ export default function Clubs() {
           overflow: 'hidden'
         }}
       >
-        {/* Header row */}
         <div
           style={{
             display: 'grid',
@@ -323,22 +320,12 @@ export default function Clubs() {
                 cursor: 'pointer',
                 transition: 'background-color 0.2s'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#e0e7ff'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = i % 2 === 0 ? '#f9fafb' : 'white'
-              }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#e0e7ff' }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = i % 2 === 0 ? '#f9fafb' : 'white' }}
             >
               <span style={{ fontWeight: 600, color: '#111827' }}>{club.club_name}</span>
               <span style={{ color: '#374151' }}>{club.club_biography}</span>
-              <span
-                style={{
-                  color: '#2563eb',
-                  fontWeight: 500,
-                  textTransform: 'capitalize'
-                }}
-              >
+              <span style={{ color: '#2563eb', fontWeight: 500, textTransform: 'capitalize' }}>
                 {club.club_type}
               </span>
             </div>
@@ -349,6 +336,81 @@ export default function Clubs() {
           </div>
         )}
       </div>
+
+      {/* --- CREATE CLUB MODAL --- */}
+      {showCreateModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '2rem',
+            borderRadius: '12px',
+            width: '90%',
+            maxWidth: '500px',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
+          }}>
+            <h2 style={{ marginTop: 0, color: '#1e293b' }}>Create a New Club</h2>
+            <form onSubmit={handleCreateClub}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Club Name</label>
+                <input 
+                  type="text" 
+                  value={newName}
+                  onChange={e => setNewName(e.target.value)}
+                  placeholder="e.g. HackUVA"
+                  required
+                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Club Type</label>
+                <input 
+                  type="text" 
+                  value={newType}
+                  onChange={e => setNewType(e.target.value)}
+                  placeholder="e.g. Technology, Sports, Arts"
+                  required
+                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}
+                />
+              </div>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Biography / Description</label>
+                <textarea 
+                  value={newBio}
+                  onChange={e => setNewBio(e.target.value)}
+                  placeholder="Tell us what your club is about..."
+                  required
+                  rows={4}
+                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db', fontFamily: 'inherit' }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                <button 
+                  type="button" 
+                  onClick={() => setShowCreateModal(false)}
+                  style={{ background: 'transparent', border: '1px solid #d1d5db', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', color: '#4b5563' }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={creating}
+                  style={{ background: '#10b981', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', color: 'white', fontWeight: 600, opacity: creating ? 0.7 : 1 }}
+                >
+                  {creating ? 'Creating...' : 'Create Club'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
