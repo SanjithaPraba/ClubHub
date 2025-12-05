@@ -843,13 +843,12 @@ def club_funding(club_id):
             cursor.close()
             conn.close()
 
-@app.route('/funding/<int:application_id>', methods=['PUT'])
-def update_funding_application(application_id):
+@app.route('/funding/<int:application_id>', methods=['PUT', 'DELETE'])
+def manage_funding_application(application_id):
     """
-    Updates the status or amount of a specific funding application.
-    Expects JSON: { "status": "Approved", "amount_received": 500 }
+    PUT    -> Updates status/amount
+    DELETE -> Deletes the application
     """
-    data = request.json or {}
     conn = get_db_connection()
     if not conn:
         return jsonify({'success': False, 'message': 'Database connection failed.'}), 500
@@ -857,20 +856,28 @@ def update_funding_application(application_id):
     try:
         cursor = conn.cursor(dictionary=True)
         
-        # Update query
-        query = """
-            UPDATE funding_application
-            SET status = %s, amount_received = %s
-            WHERE application_id = %s
-        """
-        cursor.execute(query, (
-            data.get('status'), 
-            data.get('amount_received'), 
-            application_id
-        ))
-        conn.commit()
+        # --- UPDATE (PUT) ---
+        if request.method == 'PUT':
+            data = request.json or {}
+            query = """
+                UPDATE funding_application
+                SET status = %s, amount_received = %s
+                WHERE application_id = %s
+            """
+            cursor.execute(query, (
+                data.get('status'), 
+                data.get('amount_received'), 
+                application_id
+            ))
+            conn.commit()
+            return jsonify({'success': True, 'message': 'Application updated.'}), 200
 
-        return jsonify({'success': True, 'message': 'Application updated.'}), 200
+        # --- DELETE ---
+        if request.method == 'DELETE':
+            query = "DELETE FROM funding_application WHERE application_id = %s"
+            cursor.execute(query, (application_id,))
+            conn.commit()
+            return jsonify({'success': True, 'message': 'Application deleted.'}), 200
 
     except mysql.connector.Error as err:
         conn.rollback()

@@ -131,6 +131,30 @@ export default function ClubFunding() {
     }
   }
 
+  // Handle Delete
+  const handleDelete = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this application? This cannot be undone.")) {
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/funding/${id}`, {
+        method: 'DELETE',
+      })
+      
+      if (res.ok) {
+        // Remove from list immediately
+        setApps(prev => prev.filter(app => app.application_id !== id))
+      } else {
+        const json = await res.json()
+        alert(json.message || "Failed to delete")
+      }
+    } catch (err) {
+      console.error(err)
+      alert("Error connecting to server")
+    }
+  }
+
   const getStatusColor = (status: string) => {
     if (status === 'Approved') return '#16a34a' // Green
     if (status === 'Rejected') return '#dc2626' // Red
@@ -173,7 +197,35 @@ export default function ClubFunding() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>{app.grant_name}</span>
                 {editingId !== app.application_id && (
-                  <button onClick={() => startEdit(app)} style={{ padding: '4px 8px', fontSize: '0.8rem', background: 'transparent', border: '1px solid #9ca3af', borderRadius: '4px', cursor: 'pointer' }}>Edit</button>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button 
+                      onClick={() => startEdit(app)} 
+                      style={{ 
+                        padding: '4px 8px', 
+                        fontSize: '0.8rem', 
+                        background: 'transparent', 
+                        border: '1px solid #9ca3af', 
+                        borderRadius: '4px', 
+                        cursor: 'pointer' 
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(app.application_id)} 
+                      style={{ 
+                        padding: '4px 8px', 
+                        fontSize: '0.8rem', 
+                        background: '#fee2e2', 
+                        color: '#dc2626', 
+                        border: '1px solid #fca5a5', 
+                        borderRadius: '4px', 
+                        cursor: 'pointer' 
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 )}
               </div>
 
