@@ -51,6 +51,8 @@ def signup_student():
     if not school_email.endswith('@virginia.edu'):
         # Return an error if the email doesn't meet the requirement
         return jsonify({'success': False, 'message': 'Registration requires a valid @virginia.edu email.'}), 400
+    
+    hashed_password = generate_password_hash(data['password'])
 
     # db insertion
     conn = get_db_connection()
@@ -64,7 +66,7 @@ def signup_student():
         data['student_id'], 
         data['username'], 
         school_email, 
-        data['password'],
+       hashed_password,
         data['class'], 
         data['major']
     )
