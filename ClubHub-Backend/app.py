@@ -341,6 +341,7 @@ def get_club_events(club_id):
         cursor = conn.cursor(dictionary=True)
         query = """
             SELECT 
+                event_id, 
                 event_name,
                 event_description,
                 event_type,
@@ -550,6 +551,59 @@ def rsvp_event(event_id):
         cursor.close()
         conn.close()
 
+@app.route('/clubs/<int:club_id>/rsvps', methods=['GET'])
+def get_club_rsvps_for_student(club_id):
+    """
+    Returns RSVP statuses for a given student for all events in a specific club.
+    Expects query parameter: ?student_id=<int>
+
+    Response:
+    {
+      "success": true,
+      "rsvps": [
+        { "event_id": 1, "status": "yes" },
+        { "event_id": 3, "status": "maybe" }
+      ]
+    }
+    """
+    student_id = request.args.get('student_id', type=int)
+    if not student_id:
+        return jsonify({
+            'success': False,
+            'message': 'student_id is required as a query parameter.'
+        }), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({
+            'success': False,
+            'message': 'Database connection failed.'
+        }), 500
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+
+        query = """
+            SELECT r.event_id, r.status
+            FROM rsvp r
+            JOIN event e ON r.event_id = e.event_id
+            WHERE r.student_id = %s
+              AND e.club_id = %s
+        """
+        cursor.execute(query, (student_id, club_id))
+        rows = cursor.fetchall()
+
+        return jsonify({'success': True, 'rsvps': rows}), 200
+
+    except mysql.connector.Error as err:
+        return jsonify({
+            'success': False,
+            'message': f'Database error: {err}'
+        }), 500
+    finally:
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
 
 @app.route('/clubs/<int:club_id>/announcements', methods=['GET', 'POST'])
 def club_announcements(club_id):
