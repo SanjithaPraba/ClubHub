@@ -7,6 +7,7 @@ type Club = {
   club_name: string
   club_type: string
   club_biography: string
+  admin_id: number
 }
 
 export default function ClubDetail() {
@@ -17,9 +18,16 @@ export default function ClubDetail() {
   const [isMember, setIsMember] = useState<boolean | null>(null)
   const [isJoining, setIsJoining] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
   
   // Get club data from navigation state, or redirect if not available
   const club = location.state?.club as Club | undefined
+
+
+  const isAdmin =
+  !!user &&
+  !!club &&
+  String(user.student_id) === String(club.admin_id)
 
   useEffect(() => {
     if (!club) {
@@ -30,10 +38,17 @@ export default function ClubDetail() {
   // Check membership status when component loads
   useEffect(() => {
     const checkMembership = async () => {
+      
       if (!club || !user?.student_id) {
         setIsMember(false)
         return
       }
+
+      if (isAdmin) {
+        setIsMember(true)
+        return
+      }
+
 
       try {
         const res = await fetch(`/api/clubs/${club.club_id}/membership?student_id=${user.student_id}`)
@@ -67,6 +82,8 @@ export default function ClubDetail() {
       setError('You must be logged in to join a club')
       return
     }
+  
+  
 
     setIsJoining(true)
     setError(null)
@@ -91,6 +108,15 @@ export default function ClubDetail() {
     } finally {
       setIsJoining(false)
     }
+  }
+  const handleViewEvents = () => {
+    if (!club) return
+      navigate(`/clubs/${club.club_id}/events`, { state: { club } })
+  }
+    
+  const handleViewAnnouncements = () => {
+    if (!club) return
+      navigate(`/clubs/${club.club_id}/announcements`, { state: { club } })
   }
 
   // Close dropdown when clicking outside
@@ -388,6 +414,49 @@ export default function ClubDetail() {
               </button>
             </div>
           )}
+          {/* Navigation buttons to modular pages */}
+          <div style={{ 
+            marginTop: '2rem', 
+            display: 'flex', 
+            gap: '1rem', 
+            flexWrap: 'wrap' 
+          }}>
+            <button
+              onClick={handleViewEvents}
+              style={{
+                padding: '0.6rem 1.25rem',
+                borderRadius: '8px',
+                border: '1px solid #2563eb',
+                background: 'white',
+                color: '#2563eb',
+                cursor: 'pointer',
+                fontSize: '0.95rem',
+                fontWeight: 600
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#eff6ff' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'white' }}
+            >
+              View Events
+            </button>
+
+            <button
+              onClick={handleViewAnnouncements}
+              style={{
+                padding: '0.6rem 1.25rem',
+                borderRadius: '8px',
+                border: '1px solid #6b7280',
+                background: 'white',
+                color: '#374151',
+                cursor: 'pointer',
+                fontSize: '0.95rem',
+                fontWeight: 600
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#f3f4f6' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'white' }}
+            >
+              View Announcements
+            </button>
+          </div>
         </div>
 
         <div style={{ 

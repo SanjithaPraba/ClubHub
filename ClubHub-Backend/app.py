@@ -276,6 +276,291 @@ def join_club(club_id):
         if conn and conn.is_connected():
             cursor.close()
             conn.close()
+@app.route('/clubs/<int:club_id>/events', methods=['GET'])
+def get_club_events(club_id):
+    """
+    Returns upcoming events for a specific club.
+    """
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Database connection failed.'}), 500
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+        query = """
+            SELECT 
+                event_id
+                event_name,
+                event_description,
+                event_type,
+                event_date,
+                start_time,
+                end_time,
+                venue
+            FROM event
+            WHERE club_id = %s
+              AND (event_date IS NULL OR event_date >= CURDATE())
+            ORDER BY event_date ASC
+        """
+        cursor.execute(query, (club_id,))
+        events = cursor.fetchall()
+
+        return jsonify({'success': True, 'events': events}), 200
+
+    except mysql.connector.Error as err:
+        return jsonify({'success': False, 'message': f'Database error: {err}'}), 500
+    finally:
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
+
+@app.route('/clubs/<int:club_id>/events', methods=['POST'])
+def create_club_event(club_id):
+    """
+    Creates a new event for a club. Only the club admin can create events.
+    Expects JSON: {
+      "student_id": <logged in student_id>,
+      "event_name": "...",          # required
+      "event_type": "...",          # optional
+      "event_description": "...",   # optional
+      "event_date": "YYYY-MM-DD",   # optional but recommended
+      "start_time": "HH:MM:SS",     # optional
+      "end_time": "HH:MM:SS",       # optional
+      "venue": "..."                # optional
+    }
+    """
+    data = request.json or {}
+
+    # Basic validation
+    if not data.get('student_id'):
+        return jsonify({'success': False, 'message': 'student_id is required.'}), 400
+    if not data.get('event_name'):
+        return jsonify({'success': False, 'message': 'event_name is required.'}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Database connection failed.'}), 500
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+
+        # 1) Verify club exists and who the admin is
+        cursor.execute("SELECT admin_id FROM club WHERE club_id = %s", (club_id,))
+        club_row = cursor.fetchone()
+        if not club_row:
+            return jsonify({'success': False, 'message': 'Club not found.'}), 404
+
+        admin_id = club_row['admin_id']
+        # student_id in DB might be INT, so cast both sides to int for comparison
+        try:
+            requester_id = int(data['student_id'])
+        except ValueError:
+            return jsonify({'success': False, 'message': 'Invalid student_id.'}), 400
+
+        if requester_id != admin_id:
+            return jsonify({'success': False, 'message': 'Only the club admin can create events.'}), 403
+
+        # 2) Insert the event
+        insert_query = """
+            INSERT INTO event (
+                club_id,
+                event_name,
+                event_type,
+                event_description,
+                event_date,
+                start_time,
+                end_time,
+                venue
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        values = (
+            club_id,
+            data['event_name'],
+            data.get('event_type'),
+            data.get('event_description'),
+            data.get('event_date'),
+            data.get('start_time'),
+            data.get('end_time'),
+            data.get('venue')
+        )
+
+        cursor.execute(insert_query, values)
+        conn.commit()
+        new_id = cursor.lastrowid
+
+        # Return the created event so frontend can append without refetch
+        created_event = {
+            'event_id': new_id,
+            'club_id': club_id,
+            'event_name': data['event_name'],
+            'event_type': data.get('event_type'),
+            'event_description': data.get('event_description'),
+            'event_date': data.get('event_date'),
+            'start_time': data.get('start_time'),
+            'end_time': data.get('end_time'),
+            'venue': data.get('venue'),
+        }
+
+        return jsonify({'success': True, 'event': created_event}), 201
+
+    except mysql.connector.Error as err:
+        conn.rollback()
+        return jsonify({'success': False, 'message': f'Database error: {err}'}), 500
+    finally:
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
+@app.route('/events/<int:event_id>/rsvp', methods=['POST'])
+def rsvp_event(event_id):
+    """
+    Allows a student to RSVP to an event.
+    Expects JSON: { "student_id": <int>, "status": "yes" | "no" | "maybe" }
+    Saves or updates the RSVP in the rsvp table.
+    """
+
+    data = request.json or {}
+
+    student_id = data.get('student_id')
+    status = (data.get('status') or "").lower()
+
+    # Validate fields
+    if not student_id:
+        return jsonify({
+            'success': False,
+            'message': 'student_id is required.'
+        }), 400
+
+    if status not in ('yes', 'no', 'maybe'):
+        return jsonify({
+            'success': False,
+            'message': "status must be one of: 'yes', 'no', or 'maybe'."
+        }), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({
+            'success': False,
+            'message': 'Database connection failed.'
+        }), 500
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+
+        # Confirm event exists
+        cursor.execute("SELECT event_id FROM event WHERE event_id = %s", (event_id,))
+        if cursor.fetchone() is None:
+            return jsonify({
+                'success': False,
+                'message': f'Event {event_id} does not exist.'
+            }), 404
+
+        # Confirm student exists
+        cursor.execute("SELECT student_id FROM student WHERE student_id = %s", (student_id,))
+        if cursor.fetchone() is None:
+            return jsonify({
+                'success': False,
+                'message': f'Student {student_id} does not exist.'
+            }), 404
+
+        # UPSERT into rsvp table
+        query = """
+            INSERT INTO rsvp (student_id, event_id, status)
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE status = VALUES(status)
+        """
+        cursor.execute(query, (student_id, event_id, status))
+        conn.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'RSVP saved.',
+            'event_id': event_id,
+            'student_id': student_id,
+            'status': status
+        }), 200
+
+    except mysql.connector.Error as err:
+        conn.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Database error: {err}'
+        }), 500
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.route('/clubs/<int:club_id>/announcements', methods=['GET', 'POST'])
+def club_announcements(club_id):
+    """
+    GET  -> list announcements for a club
+    POST -> create a new announcement (admin only)
+    """
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Database connection failed.'}), 500
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+
+        if request.method == 'GET':
+            # ---- list announcements ----
+            query = """
+                SELECT 
+                    announcement_id,
+                    announcement_header,
+                    announcement_body,
+                    club_id
+                FROM announcements
+                WHERE club_id = %s
+                ORDER BY announcement_id
+            """
+            cursor.execute(query, (club_id,))
+            rows = cursor.fetchall()
+            return jsonify({'success': True, 'announcements': rows}), 200
+
+        # ---------- POST: create announcement (admin only) ----------
+        data = request.json or {}
+        student_id = data.get('student_id')
+        header = (data.get('announcement_header') or '').strip()
+        body = (data.get('announcement_body') or '').strip()
+
+        if not student_id or not header or not body:
+            return jsonify({
+                'success': False,
+                'message': 'student_id, announcement_header, and announcement_body are required.'
+            }), 400
+
+        # Check if this student is the admin for this club
+        cursor.execute("SELECT admin_id FROM club WHERE club_id = %s", (club_id,))
+        club_row = cursor.fetchone()
+        if not club_row:
+            return jsonify({'success': False, 'message': 'Club not found.'}), 404
+
+        admin_id = club_row['admin_id']
+        if str(admin_id) != str(student_id):
+            return jsonify({'success': False, 'message': 'Only the club admin can post announcements.'}), 403
+
+        # Insert announcement
+        insert_query = """
+            INSERT INTO announcements (announcement_header, announcement_body, club_id)
+            VALUES (%s, %s, %s)
+        """
+        cursor.execute(insert_query, (header, body, club_id))
+        conn.commit()
+
+        return jsonify({'success': True, 'message': 'Announcement created.'}), 201
+
+    except mysql.connector.Error as err:
+        conn.rollback()
+        return jsonify({'success': False, 'message': f'Database error: {err}'}), 500
+    finally:
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
+
 
 if __name__ == '__main__':
     # You can uncomment this line to test the connection immediately
