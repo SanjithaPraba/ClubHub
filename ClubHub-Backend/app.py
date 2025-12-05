@@ -418,6 +418,106 @@ def get_club_events(club_id):
         if conn and conn.is_connected():
             cursor.close()
             conn.close()
+@app.route('/clubs/<int:club_id>/transfer-admin', methods=['POST'])
+def transfer_club_admin(club_id):
+    """
+    Transfers ownership of a club to another student.
+    Expects JSON: { "current_admin_id": <int>, "new_admin_id": <int> }
+    Only the current admin can perform this action.
+    """
+    data = request.json or {}
+    current_admin_id = data.get('current_admin_id')
+    new_admin_id = data.get('new_admin_id')
+
+    # Basic validation
+    if current_admin_id is None or new_admin_id is None:
+        return jsonify({
+            'success': False,
+            'message': 'current_admin_id and new_admin_id are required.'
+        }), 400
+
+    try:
+        current_admin_id = int(current_admin_id)
+        new_admin_id = int(new_admin_id)
+    except ValueError:
+        return jsonify({
+            'success': False,
+            'message': 'current_admin_id and new_admin_id must be integers.'
+        }), 400
+
+    if current_admin_id == new_admin_id:
+        return jsonify({
+            'success': False,
+            'message': 'New admin must be a different student.'
+        }), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Database connection failed.'}), 500
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+
+        # 1) Verify club exists and current admin matches
+        cursor.execute("SELECT admin_id FROM club WHERE club_id = %s", (club_id,))
+        club_row = cursor.fetchone()
+        if not club_row:
+            return jsonify({'success': False, 'message': 'Club not found.'}), 404
+
+        if club_row['admin_id'] != current_admin_id:
+            return jsonify({
+                'success': False,
+                'message': 'Only the current club admin can transfer ownership.'
+            }), 403
+
+        # 2) Verify new admin student exists
+        cursor.execute("SELECT student_id FROM student WHERE student_id = %s", (new_admin_id,))
+        student_row = cursor.fetchone()
+        if not student_row:
+            return jsonify({
+                'success': False,
+                'message': f'Student {new_admin_id} does not exist.'
+            }), 404
+
+        # (Optional but nice): ensure new admin is at least a member of the club
+        cursor.execute(
+            "SELECT 1 FROM member WHERE student_id = %s AND club_id = %s",
+            (new_admin_id, club_id)
+        )
+        membership = cursor.fetchone()
+        if not membership:
+            # auto-enroll them as member
+            cursor.execute(
+                "INSERT INTO member (student_id, club_id) VALUES (%s, %s)",
+                (new_admin_id, club_id)
+            )
+
+        # 3) Perform the admin transfer
+        cursor.execute(
+            "UPDATE club SET admin_id = %s WHERE club_id = %s",
+            (new_admin_id, club_id)
+        )
+        conn.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Club ownership transferred successfully.',
+            'club_id': club_id,
+            'new_admin_id': new_admin_id
+        }), 200
+
+    except mysql.connector.Error as err:
+        conn.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Database error: {err}'
+        }), 500
+
+    finally:
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
+
 
 @app.route('/clubs/<int:club_id>/events', methods=['POST'])
 def create_club_event(club_id):

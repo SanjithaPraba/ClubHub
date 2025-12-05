@@ -18,6 +18,10 @@ export default function ClubDetail() {
   const [isMember, setIsMember] = useState<boolean | null>(null)
   const [isJoining, setIsJoining] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showTransferModal, setShowTransferModal] = useState(false)
+  const [newAdminIdInput, setNewAdminIdInput] = useState('')
+  const [transferLoading, setTransferLoading] = useState(false)
+  const [transferError, setTransferError] = useState<string | null>(null)
 
   
   // Get club data from navigation state, or redirect if not available
@@ -109,6 +113,61 @@ export default function ClubDetail() {
       setIsJoining(false)
     }
   }
+
+  const handleOpenTransferModal = () => {
+    setTransferError(null)
+    setNewAdminIdInput('')
+    setShowTransferModal(true)
+  }
+  
+  const handleTransferSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!club || !user) return
+  
+    const trimmed = newAdminIdInput.trim()
+    if (!trimmed) {
+      setTransferError('Please enter a student ID.')
+      return
+    }
+  
+    const newAdminIdNum = Number(trimmed)
+    if (Number.isNaN(newAdminIdNum)) {
+      setTransferError('Student ID must be a number.')
+      return
+    }
+  
+    setTransferLoading(true)
+    setTransferError(null)
+  
+    try {
+      const res = await fetch(`/api/clubs/${club.club_id}/transfer-admin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          current_admin_id: user.student_id,
+          new_admin_id: newAdminIdNum,
+        }),
+      })
+  
+      const json = await res.json()
+  
+      if (!res.ok) {
+        setTransferError(json.message || 'Failed to transfer ownership.')
+        return
+      }
+  
+      // Ownership changed; simplest is to kick back to clubs list
+      alert('Ownership transferred successfully. You are no longer the admin.')
+      setShowTransferModal(false)
+      navigate('/clubs') // or wherever your list page is
+    } catch (err: any) {
+      setTransferError(err.message || 'Failed to transfer ownership.')
+    } finally {
+      setTransferLoading(false)
+    }
+  }
+
+
   const handleViewEvents = () => {
     if (!club) return
       navigate(`/clubs/${club.club_id}/events`, { state: { club } })
@@ -494,9 +553,34 @@ export default function ClubDetail() {
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'white' }}
               >
                 View Funding (Admin)
+              </button>   
+            )}
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={handleOpenTransferModal}
+                style={{
+                  padding: '0.6rem 1.25rem',
+                  borderRadius: '8px',
+                  border: '1px solid #f97316',
+                  background: 'white',
+                  color: '#c2410c',
+                  cursor: 'pointer',
+                  fontSize: '0.95rem',
+                  fontWeight: 600,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#fff7ed'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'white'
+                }}
+              >
+                Transfer Ownership
               </button>
             )}
           </div>
+
         </div>
 
         <div style={{ 
@@ -539,7 +623,135 @@ export default function ClubDetail() {
           </div>
         </div>
       </div>
+      {showTransferModal && club && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15,23,42,0.45)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 200,
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 420,
+              background: 'white',
+              borderRadius: 16,
+              padding: '1.5rem 1.75rem',
+              boxShadow: '0 20px 45px rgba(15,23,42,0.25)',
+            }}
+          >
+            <h2
+              style={{
+                marginTop: 0,
+                marginBottom: '0.5rem',
+                fontSize: '1.15rem',
+              }}
+            >
+              Transfer Club Ownership
+            </h2>
+            <p
+              style={{
+                marginTop: 0,
+                marginBottom: '0.75rem',
+                fontSize: '0.9rem',
+                color: '#4b5563',
+              }}
+            >
+              You are about to transfer admin rights for{' '}
+              <strong>{club.club_name}</strong> to another student. Enter the
+              recipient&apos;s <strong>student ID</strong> below.
+            </p>
+
+            {transferError && (
+              <p
+                style={{
+                  marginTop: 0,
+                  marginBottom: '0.75rem',
+                  fontSize: '0.85rem',
+                  color: '#b91c1c',
+                }}
+              >
+                {transferError}
+              </p>
+            )}
+
+            <form onSubmit={handleTransferSubmit}>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '0.85rem',
+                  marginBottom: '0.25rem',
+                  color: '#374151',
+                }}
+              >
+                New Admin Student ID
+              </label>
+              <input
+                type="text"
+                value={newAdminIdInput}
+                onChange={(e) => setNewAdminIdInput(e.target.value)}
+                placeholder="e.g. 2001"
+                style={{
+                  width: '100%',
+                  padding: '0.5rem 0.6rem',
+                  borderRadius: 8,
+                  border: '1px solid #d1d5db',
+                  marginBottom: '1rem',
+                  fontSize: '0.9rem',
+                }}
+              />
+
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: '0.5rem',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setShowTransferModal(false)}
+                  disabled={transferLoading}
+                  style={{
+                    padding: '0.45rem 0.9rem',
+                    borderRadius: 8,
+                    border: '1px solid #d1d5db',
+                    background: 'white',
+                    color: '#374151',
+                    cursor: transferLoading ? 'not-allowed' : 'pointer',
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={transferLoading}
+                  style={{
+                    padding: '0.45rem 0.9rem',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: transferLoading ? '#9ca3af' : '#dc2626',
+                    color: 'white',
+                    cursor: transferLoading ? 'not-allowed' : 'pointer',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  {transferLoading ? 'Transferring...' : 'Confirm Transfer'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
+    
   )
 }
 
