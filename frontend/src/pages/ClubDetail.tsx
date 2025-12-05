@@ -476,6 +476,26 @@ export default function ClubDetail() {
                 View Expenses (Admin)
               </button>
             )}
+
+            {isAdmin && (
+              <button
+                onClick={() => navigate(`/clubs/${club.club_id}/funding`, { state: { club } })}
+                style={{
+                  padding: '0.6rem 1.25rem',
+                  borderRadius: '8px',
+                  border: '1px solid #16a34a', // Green border
+                  background: 'white',
+                  color: '#16a34a',
+                  cursor: 'pointer',
+                  fontSize: '0.95rem',
+                  fontWeight: 600
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = '#f0fdf4' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'white' }}
+              >
+                View Funding (Admin)
+              </button>
+            )}
           </div>
         </div>
 

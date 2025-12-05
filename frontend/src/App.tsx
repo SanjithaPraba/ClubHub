@@ -9,6 +9,7 @@ import ClubDetail from './pages/ClubDetail'
 import ClubEvents from './pages/ClubEvents'
 import ClubAnnouncements from './pages/ClubAnnouncements'
 import ClubExpenses from './pages/ClubExpenses'
+import ClubFunding from './pages/ClubFunding'
 
 
 function RootRedirect() {
@@ -29,6 +30,7 @@ function AppRoutes() {
       <Route path="/clubs/:clubId/events" element ={< ClubEvents/>}/>
       <Route path="/clubs/:clubId/expenses" element ={<ClubExpenses/>}/>
       <Route path="/clubs/:clubId/announcements" element ={<ClubAnnouncements/>}/>
+      <Route path="/clubs/:clubId/funding" element={<ClubFunding />} />
     </Routes>
   )
 }

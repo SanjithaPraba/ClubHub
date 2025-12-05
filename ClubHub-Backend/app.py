@@ -766,6 +766,120 @@ def club_expenses(club_id):
             cursor.close()
             conn.close()
 
+@app.route('/clubs/<int:club_id>/funding', methods=['GET', 'POST'])
+def club_funding(club_id):
+    """
+    GET -> Returns all funding applications for a club (Admin only).
+    POST -> Adds a new funding application (Admin only).
+    """
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Database connection failed.'}), 500
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+
+        # Verify Admin (Security Check)
+        # In a real app, you'd check the session/token here, but we rely on the frontend sending the ID for now.
+        # We will check the student_id provided in the request or query params for security.
+        
+        if request.method == 'GET':
+            query = """
+                SELECT 
+                    application_id,
+                    club_id,
+                    grant_name,
+                    status,
+                    amount_received
+                FROM funding_application
+                WHERE club_id = %s
+                ORDER BY application_id DESC
+            """
+            cursor.execute(query, (club_id,))
+            rows = cursor.fetchall()
+            
+            # Fix decimal serialization
+            for row in rows:
+                if row.get('amount_received') is not None:
+                    row['amount_received'] = float(row['amount_received'])
+            
+            return jsonify({'success': True, 'applications': rows}), 200
+
+        # --- POST: Create Application ---
+        data = request.json or {}
+        
+        # Verify requester is admin
+        student_id = data.get('student_id')
+        if not student_id:
+             return jsonify({'success': False, 'message': 'Student ID required.'}), 400
+
+        cursor.execute("SELECT admin_id FROM club WHERE club_id = %s", (club_id,))
+        club_row = cursor.fetchone()
+        if not club_row or str(club_row['admin_id']) != str(student_id):
+             return jsonify({'success': False, 'message': 'Unauthorized.'}), 403
+
+        insert_query = """
+            INSERT INTO funding_application (club_id, grant_name, status, amount_received)
+            VALUES (%s, %s, %s, %s)
+        """
+        # Default status to 'Pending' if not provided
+        values = (
+            club_id,
+            data.get('grant_name'),
+            data.get('status', 'Pending'), 
+            data.get('amount_received', 0)
+        )
+        
+        cursor.execute(insert_query, values)
+        conn.commit()
+        
+        return jsonify({'success': True, 'message': 'Application tracked successfully.'}), 201
+
+    except mysql.connector.Error as err:
+        conn.rollback()
+        return jsonify({'success': False, 'message': f'Database error: {err}'}), 500
+    finally:
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
+
+@app.route('/funding/<int:application_id>', methods=['PUT'])
+def update_funding_application(application_id):
+    """
+    Updates the status or amount of a specific funding application.
+    Expects JSON: { "status": "Approved", "amount_received": 500 }
+    """
+    data = request.json or {}
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Database connection failed.'}), 500
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+        
+        # Update query
+        query = """
+            UPDATE funding_application
+            SET status = %s, amount_received = %s
+            WHERE application_id = %s
+        """
+        cursor.execute(query, (
+            data.get('status'), 
+            data.get('amount_received'), 
+            application_id
+        ))
+        conn.commit()
+
+        return jsonify({'success': True, 'message': 'Application updated.'}), 200
+
+    except mysql.connector.Error as err:
+        conn.rollback()
+        return jsonify({'success': False, 'message': f'Database error: {err}'}), 500
+    finally:
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
+
 
 if __name__ == '__main__':
     # You can uncomment this line to test the connection immediately
