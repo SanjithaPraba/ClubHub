@@ -120,9 +120,8 @@ def login_student():
             return jsonify({'success': False, 'message': 'Invalid email or password.'}), 401
         
         #Not doing hashed passwords so don't use your real password when you sign up w testing data lmao
-        if user['password'] != password:
+        if not check_password_hash(user['password'], password):
             return jsonify({'success': False, 'message': 'Invalid email or password.'}), 401
-        
         # Return user data (excluding password)
         return jsonify({
             'success': True,
