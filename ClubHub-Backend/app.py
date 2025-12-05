@@ -249,37 +249,32 @@ def get_my_clubs():
     """
     Returns all of the associated student's clubs.
     """
-
     sid = request.args.get('sid')
     if not sid:
-        return jsonify({
-            'success': False,
-            'message': 'Missing student ID (sid).'
-        }), 400
+        return jsonify({'success': False, 'message': 'Missing student ID (sid).'}), 400
 
     conn = get_db_connection()
     if not conn:
         return jsonify({'success': False, 'message': 'Database connection failed.'}), 500
-    
 
     try:
         cursor = conn.cursor(dictionary=True)
+        # --- CHANGED: Added c.admin_id to the SELECT clauses ---
         query = """ 
-                (SELECT c.club_id,c.club_name,c.club_type, c.club_biography
+                (SELECT c.club_id, c.club_name, c.club_type, c.club_biography, c.admin_id
                 FROM member m
                 JOIN club c on m.club_id = c.club_id
                 WHERE m.student_id=%s)
 
                 UNION
-                (SELECT c.club_id,c.club_name,c.club_type, c.club_biography
+
+                (SELECT c.club_id, c.club_name, c.club_type, c.club_biography, c.admin_id
                 FROM manages mg
                 JOIN club c on mg.club_id = c.club_id
                 WHERE mg.student_id=%s
                 )
-
-
         """
-        cursor.execute(query,(sid,sid))
+        cursor.execute(query, (sid, sid))
         rows = cursor.fetchall()
         return jsonify({'success': True, 'clubs': rows}), 200
     
@@ -288,9 +283,6 @@ def get_my_clubs():
     finally:
         cursor.close()
         conn.close()
-
-
-
 
 @app.route('/clubs/<int:club_id>/membership', methods=['GET'])
 def check_membership(club_id):
@@ -1141,6 +1133,61 @@ def export_club_expenses(club_id):
             cursor.close()
             conn.close()
 
+@app.route('/my_events', methods=['GET'])
+def get_my_events():
+    """
+    Returns upcoming events for all clubs the student is a member or admin of.
+    """
+    student_id = request.args.get('student_id')
+    if not student_id:
+        return jsonify({'success': False, 'message': 'student_id is required.'}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Database connection failed.'}), 500
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+        
+        # Join event -> club, then filter by membership/admin status
+        query = """
+            SELECT 
+                e.event_id,
+                e.event_name,
+                e.event_date,
+                e.start_time,
+                e.venue,
+                c.club_name,
+                c.club_id
+            FROM event e
+            JOIN club c ON e.club_id = c.club_id
+            WHERE e.event_date >= CURDATE()
+            AND (
+                c.club_id IN (SELECT club_id FROM member WHERE student_id = %s)
+                OR 
+                c.admin_id = %s
+            )
+            ORDER BY e.event_date ASC, e.start_time ASC
+            LIMIT 10
+        """
+        cursor.execute(query, (student_id, student_id))
+        events = cursor.fetchall()
+
+        # Convert times to strings for JSON
+        for event in events:
+            if event.get('start_time'):
+                event['start_time'] = str(event['start_time'])
+            if event.get('event_date'):
+                event['event_date'] = str(event['event_date'])
+
+        return jsonify({'success': True, 'events': events}), 200
+
+    except mysql.connector.Error as err:
+        return jsonify({'success': False, 'message': f'Database error: {err}'}), 500
+    finally:
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
 
 if __name__ == '__main__':
     # You can uncomment this line to test the connection immediately

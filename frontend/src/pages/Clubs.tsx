@@ -7,6 +7,7 @@ type Club = {
   club_name: string
   club_type: string
   club_biography: string
+  admin_id: number
 }
 
 export default function Clubs() {

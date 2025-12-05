@@ -9,6 +9,16 @@ type Post = {
   post_body: string
 }
 
+type DashboardEvent = {
+  event_id: number
+  event_name: string
+  event_date: string
+  start_time: string
+  venue: string
+  club_name: string
+  club_id: number
+}
+
 export default function Welcome() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
@@ -16,6 +26,10 @@ export default function Welcome() {
   // State for Posts
   const [posts, setPosts] = useState<Post[]>([])
   const [loadingPosts, setLoadingPosts] = useState(true)
+
+  // State for My Events
+  const [myEvents, setMyEvents] = useState<DashboardEvent[]>([])
+  const [loadingEvents, setLoadingEvents] = useState(true)
 
   // State for Profile Menu
   const [showProfileMenu, setShowProfileMenu] = useState(false)
@@ -49,11 +63,11 @@ export default function Welcome() {
     }
   }, [showProfileMenu])
 
-  // Fetch posts on mount
+  // Fetch posts and events on mount
   useEffect(() => {
-    const fetchPosts = async () => {
+    const fetchData = async () => {
+      // 1. Fetch Posts
       try {
-        // UPDATED ROUTE: /get_posts
         const res = await fetch('/api/get_posts')
         const json = await res.json()
         if (res.ok) {
@@ -65,9 +79,24 @@ export default function Welcome() {
       } finally {
         setLoadingPosts(false)
       }
+
+      // 2. Fetch My Events
+      if (user?.student_id) {
+        try {
+          const res = await fetch(`/api/my_events?student_id=${user.student_id}`)
+          const json = await res.json()
+          if (res.ok) {
+            setMyEvents(json.events || [])
+          }
+        } catch (err) {
+          console.error("Failed to fetch events:", err)
+        } finally {
+          setLoadingEvents(false)
+        }
+      }
     }
-    fetchPosts()
-  }, [])
+    fetchData()
+  }, [user])
 
   // Handle Post Submission
   const handlePublish = async (e: React.FormEvent) => {
@@ -76,7 +105,6 @@ export default function Welcome() {
 
     setIsSubmitting(true)
     try {
-      // UPDATED ROUTE: /make_post
       const res = await fetch('/api/make_post', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -89,9 +117,7 @@ export default function Welcome() {
       const json = await res.json()
 
       if (res.ok && json.success) {
-        // Add the new post to the TOP of the list immediately
         setPosts(prev => [json.post, ...prev])
-        // Reset form and close modal
         setNewPostHeader('')
         setNewPostBody('')
         setShowModal(false)
@@ -251,7 +277,7 @@ export default function Welcome() {
           overflow: 'hidden'
         }}>
           
-          {/* Left Column */}
+          {/* Left Column: Upcoming Events */}
           <div style={{
             background: 'white',
             borderRadius: '12px',
@@ -260,12 +286,73 @@ export default function Welcome() {
             border: '1px solid #e5e7eb',
             display: 'flex',
             flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            color: '#9ca3af'
+            overflowY: 'auto'
           }}>
-            <h3>Your Upcoming Events</h3>
-            <p>You haven't joined any events yet.</p>
+            <h3 style={{ marginTop: 0, marginBottom: '1.5rem', color: '#1e293b' }}>
+              Your Upcoming Events
+            </h3>
+            
+            {loadingEvents ? (
+              <p style={{ color: '#9ca3af' }}>Loading events...</p>
+            ) : myEvents.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#9ca3af', marginTop: '2rem' }}>
+                <p>You haven't joined any clubs with upcoming events.</p>
+                <button 
+                  onClick={handleViewClubs}
+                  style={{ 
+                    marginTop: '1rem',
+                    background: 'transparent',
+                    border: '1px solid #d1d5db',
+                    color: '#4b5563',
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Join a Club
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {myEvents.map(event => (
+                  <div 
+                    key={event.event_id} 
+                    style={{
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      padding: '1rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.5rem',
+                      cursor: 'pointer',
+                      transition: 'background 0.2s',
+                      background: '#f9fafb'
+                    }}
+                    onClick={() => navigate(`/clubs/${event.club_id}/events`)} // Go to club event page
+                    onMouseEnter={(e) => { e.currentTarget.style.background = '#f0f9ff' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = '#f9fafb' }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 600, color: '#1e293b', fontSize: '1.1rem' }}>
+                        {event.event_name}
+                      </span>
+                      <span style={{ fontSize: '0.8rem', color: '#2563eb', background: '#dbeafe', padding: '2px 8px', borderRadius: '12px' }}>
+                        {event.club_name}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '1rem', fontSize: '0.9rem', color: '#4b5563' }}>
+                      <span>📅 {event.event_date}</span>
+                      <span>⏰ {event.start_time}</span>
+                    </div>
+                    {event.venue && (
+                      <div style={{ fontSize: '0.9rem', color: '#6b7280' }}>
+                        📍 {event.venue}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Right Column: Feed Sidebar */}
@@ -392,7 +479,6 @@ export default function Welcome() {
             <form onSubmit={handlePublish}>
               <div style={{ marginBottom: '1rem' }}>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Title / Header</label>
-                {/* FIXED: Removed the "ZX" typo below */}
                 <input 
                   type="text" 
                   value={newPostHeader}
