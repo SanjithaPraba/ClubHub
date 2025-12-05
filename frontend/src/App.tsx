@@ -8,6 +8,7 @@ import MyClubs from './pages/MyClubs'
 import ClubDetail from './pages/ClubDetail'
 import ClubEvents from './pages/ClubEvents'
 import ClubAnnouncements from './pages/ClubAnnouncements'
+import ClubExpenses from './pages/ClubExpenses'
 
 
 function RootRedirect() {
@@ -26,6 +27,7 @@ function AppRoutes() {
       <Route path="/my-clubs" element={<MyClubs />} />
       <Route path="/clubs/:clubId" element={<ClubDetail />} />
       <Route path="/clubs/:clubId/events" element ={< ClubEvents/>}/>
+      <Route path="/clubs/:clubId/expenses" element ={<ClubExpenses/>}/>
       <Route path="/clubs/:clubId/announcements" element ={<ClubAnnouncements/>}/>
     </Routes>
   )

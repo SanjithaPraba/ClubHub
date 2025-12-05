@@ -456,6 +456,26 @@ export default function ClubDetail() {
             >
               View Announcements
             </button>
+
+            {isAdmin && (
+              <button
+                onClick={() => navigate(`/clubs/${club.club_id}/expenses`, { state: { club } })}
+                style={{
+                  padding: '0.6rem 1.25rem',
+                  borderRadius: '8px',
+                  border: '1px solid #dc2626', // Red border to distinguish
+                  background: 'white',
+                  color: '#dc2626',
+                  cursor: 'pointer',
+                  fontSize: '0.95rem',
+                  fontWeight: 600
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = '#fef2f2' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'white' }}
+              >
+                View Expenses (Admin)
+              </button>
+            )}
           </div>
         </div>
 

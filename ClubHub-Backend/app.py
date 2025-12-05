@@ -685,6 +685,87 @@ def get_posts():
         cursor.close()
         conn.close()
 
+@app.route('/clubs/<int:club_id>/expenses', methods=['GET', 'POST'])
+def club_expenses(club_id):
+    """
+    GET  -> Returns all expense logs for a specific club (Admin only feature conceptually).
+    POST -> Adds a new expense log (Admin only).
+    """
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Database connection failed.'}), 500
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+
+        if request.method == 'GET':
+            # --- GET: List Expenses ---
+            query = """
+                SELECT 
+                    expense_id,
+                    club_id,
+                    expense_amount,
+                    expense_date,
+                    expense_description
+                FROM expense
+                WHERE club_id = %s
+                ORDER BY expense_date DESC
+            """
+            cursor.execute(query, (club_id,))
+            rows = cursor.fetchall()
+            
+            # Fix JSON serialization for dates and decimals
+            for row in rows:
+                if row.get('expense_date'):
+                    row['expense_date'] = str(row['expense_date'])
+                if row.get('expense_amount'):
+                    # Convert Decimal to float or string for JSON
+                    row['expense_amount'] = float(row['expense_amount'])
+
+            return jsonify({'success': True, 'expenses': rows}), 200
+
+        # --- POST: Create Expense ---
+        data = request.json or {}
+        
+        # 1. Validation
+        if not data.get('student_id'):
+            return jsonify({'success': False, 'message': 'student_id is required check.'}), 400
+        
+        # Check if requester is the admin
+        cursor.execute("SELECT admin_id FROM club WHERE club_id = %s", (club_id,))
+        club_row = cursor.fetchone()
+        if not club_row:
+            return jsonify({'success': False, 'message': 'Club not found.'}), 404
+            
+        # Verify Admin status
+        if str(club_row['admin_id']) != str(data['student_id']):
+             return jsonify({'success': False, 'message': 'Only the club admin can log expenses.'}), 403
+
+        # 2. Insert Data
+        insert_query = """
+            INSERT INTO expense (club_id, expense_amount, expense_date, expense_description)
+            VALUES (%s, %s, %s, %s)
+        """
+        values = (
+            club_id,
+            data.get('expense_amount'),
+            data.get('expense_date'),       # Expecting 'YYYY-MM-DD'
+            data.get('expense_description')
+        )
+        
+        cursor.execute(insert_query, values)
+        conn.commit()
+        
+        return jsonify({'success': True, 'message': 'Expense logged successfully.'}), 201
+
+    except mysql.connector.Error as err:
+        conn.rollback()
+        return jsonify({'success': False, 'message': f'Database error: {err}'}), 500
+    finally:
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
+
 
 if __name__ == '__main__':
     # You can uncomment this line to test the connection immediately
