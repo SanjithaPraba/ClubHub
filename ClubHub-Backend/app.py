@@ -289,7 +289,6 @@ def get_club_events(club_id):
         cursor = conn.cursor(dictionary=True)
         query = """
             SELECT 
-                event_id
                 event_name,
                 event_description,
                 event_type,
