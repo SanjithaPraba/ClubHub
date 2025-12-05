@@ -9,7 +9,7 @@ type Club = {
 }
 
 type EventItem = {
-  event_id?: number
+  event_id: number
   event_name: string
   event_description?: string | null
   event_type?: string | null
@@ -18,6 +18,8 @@ type EventItem = {
   end_time?: string | null
   venue?: string | null
 }
+
+type RSVPStatus = 'yes' | 'no' | 'maybe'
 
 export default function ClubEvents() {
   const { clubId } = useParams()
@@ -41,6 +43,10 @@ export default function ClubEvents() {
   const [newVenue, setNewVenue] = useState('')
   const [newStartTime, setNewStartTime] = useState('')
   const [newEndTime, setNewEndTime] = useState('')
+  const [rsvpStatus, setRsvpStatus] = useState<Record<number, RSVPStatus | null>>(
+    {}
+  )
+  const [rsvpSavingId, setRsvpSavingId] = useState<number | null>(null)
 
   const clubIdNumber = clubFromState?.club_id || Number(clubId)
   const isAdmin =
