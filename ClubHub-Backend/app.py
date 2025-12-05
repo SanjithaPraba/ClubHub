@@ -7,7 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import csv
 import io
 from flask import Response
-from flask_cors import CORS
+#from flask_cors import CORS
 
 
 load_dotenv()
@@ -30,7 +30,7 @@ def get_db_connection():
         return None
 
 app = Flask(__name__)
-CORS(app)
+#CORS(app)
 
 @app.route('/signup', methods=['POST'])
 def signup_student():
